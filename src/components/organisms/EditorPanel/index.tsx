@@ -14,6 +14,7 @@ import {
   MoreVertical,
 } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
+import { editorPanelCss } from './css'
 
 // #region Ícones da barra de ferramentas
 // Barra de formatação só visual por enquanto — os botões ainda não
@@ -35,24 +36,24 @@ export function EditorPanel() {
 
   if (!activeChapter) {
     return (
-      <section className="panel editor-panel editor-panel--empty">
+      <section className={editorPanelCss.panel + ' ' + editorPanelCss.editorPanel + ' ' + editorPanelCss.editorPanelEmpty}>
         <p>Selecione um capítulo na lista ao lado para começar a escrever.</p>
       </section>
     )
   }
 
   return (
-    <section className="panel editor-panel">
+    <section className={editorPanelCss.panel + ' ' + editorPanelCss.editorPanel}>
       {/* #region Cabeçalho do capítulo */}
-      <div className="editor-panel__header">
-        <div className="editor-panel__title-row">
+      <div className={editorPanelCss.editorPanelHeader}>
+        <div className={editorPanelCss.editorPanelTitleRow}>
           <h2>{activeChapter.title}</h2>
-          <span className="editor-panel__saved">
-            <span className="dot" /> Salvo há 2 min
+          <span className={editorPanelCss.editorPanelSaved}>
+            <span className={editorPanelCss.dot} /> Salvo há 2 min
           </span>
         </div>
-        <div className="editor-panel__header-actions">
-          <span className="editor-panel__word-count">{wordCount} palavras</span>
+        <div className={editorPanelCss.editorPanelHeaderActions}>
+          <span className={editorPanelCss.editorPanelWordCount}>{wordCount} palavras</span>
           <Maximize2 size={16} />
           <MoreVertical size={16} />
         </div>
@@ -60,17 +61,17 @@ export function EditorPanel() {
       {/* #endregion */}
 
       {/* #region Barra de ferramentas */}
-      <div className="editor-panel__toolbar">
-        <button className="toolbar-dropdown">Parágrafo ⌄</button>
+      <div className={editorPanelCss.editorPanelToolbar}>
+        <button className={editorPanelCss.toolbarDropdown}>Parágrafo ⌄</button>
         {TOOLBAR_ICONS.map((Icon, i) => (
           <Icon key={i} size={16} />
         ))}
-        <span className="toolbar-divider" />
-        <span className="toolbar-quote">”</span>
+        <span className={editorPanelCss.toolbarDivider} />
+        <span className={editorPanelCss.toolbarQuote}>”</span>
         {LIST_ICONS.map((Icon, i) => (
           <Icon key={i} size={16} />
         ))}
-        <span className="toolbar-divider" />
+        <span className={editorPanelCss.toolbarDivider} />
         {ALIGN_ICONS.map((Icon, i) => (
           <Icon key={i} size={16} />
         ))}
@@ -82,7 +83,7 @@ export function EditorPanel() {
 
       {/* #region Área de texto */}
       <textarea
-        className="editor-panel__textarea"
+        className={editorPanelCss.editorPanelTextarea}
         value={activeChapter.content}
         placeholder="Comece a escrever..."
         // toda tecla digitada atualiza o capítulo ativo no store global
@@ -91,7 +92,7 @@ export function EditorPanel() {
       {/* #endregion */}
 
       {/* #region Rodapé */}
-      <div className="editor-panel__footer">
+      <div className={editorPanelCss.editorPanelFooter}>
         {wordCount} palavras · Última edição há 2 min
       </div>
       {/* #endregion */}

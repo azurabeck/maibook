@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { TopNav } from '@/components/organisms/TopNav'
+import { projectLayoutCss } from './css'
 
 // Template: estrutura de qualquer página dentro de um projeto —
 // barra superior fixa (TopNav) + conteúdo da aba ativa abaixo.
@@ -7,9 +8,9 @@ import { TopNav } from '@/components/organisms/TopNav'
 // (ex: /projeto/:id/capitulos).
 export function ProjectLayout() {
   return (
-    <div className="project-layout">
+    <div className={projectLayoutCss.projectLayout}>
       <TopNav />
-      <main className="project-layout__content">
+      <main className={projectLayoutCss.projectLayoutContent}>
         <Outlet />
       </main>
     </div>

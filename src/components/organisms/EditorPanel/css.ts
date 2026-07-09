@@ -1,0 +1,17 @@
+export const editorPanelCss = {
+  panel: 'panel',
+  editorPanel: 'editor-panel',
+  editorPanelEmpty: 'editor-panel--empty',
+  editorPanelHeader: 'editor-panel__header',
+  editorPanelTitleRow: 'editor-panel__title-row',
+  editorPanelSaved: 'editor-panel__saved',
+  dot: 'dot',
+  editorPanelHeaderActions: 'editor-panel__header-actions',
+  editorPanelWordCount: 'editor-panel__word-count',
+  editorPanelToolbar: 'editor-panel__toolbar',
+  toolbarDropdown: 'toolbar-dropdown',
+  toolbarDivider: 'toolbar-divider',
+  toolbarQuote: 'toolbar-quote',
+  editorPanelTextarea: 'editor-panel__textarea',
+  editorPanelFooter: 'editor-panel__footer',
+} as const

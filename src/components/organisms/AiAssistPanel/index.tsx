@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/atoms/Button'
 import { aiProvider } from '@/services/ai'
+import { aiAssistPanelCss } from './css'
 
 // Esse organismo é a peça-chave da sua ideia: "a IA pode ajudar em
 // cada aba". Ele recebe o texto atual (contextText) e o tipo de
@@ -38,7 +39,7 @@ export function AiAssistPanel({ contextText, mode }: AiAssistPanelProps) {
   }
 
   return (
-    <div className="ai-panel">
+    <div className={aiAssistPanelCss.aiPanel}>
       <Button onClick={handleAskAi} disabled={loading || !contextText}>
         {loading
           ? 'Pensando...'
@@ -47,10 +48,10 @@ export function AiAssistPanel({ contextText, mode }: AiAssistPanelProps) {
             : 'Sugerir ideias'}
       </Button>
 
-      {error && <p className="ai-panel__error">{error}</p>}
+      {error && <p className={aiAssistPanelCss.aiPanelError}>{error}</p>}
 
       {result && (
-        <div className="ai-panel__result">
+        <div className={aiAssistPanelCss.aiPanelResult}>
           <p>{result}</p>
         </div>
       )}

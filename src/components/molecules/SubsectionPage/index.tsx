@@ -1,9 +1,6 @@
 import { useState } from 'react'
-
-interface SubsectionPageProps {
-  title: string
-  sections: string[]
-}
+import { subsectionPageCss } from './css'
+import type { SubsectionPageProps } from './type'
 
 // Componente genérico pras abas que ainda não têm design definido no
 // Figma (Estruturas, Personagens, Timeline, Ideias). Mostra as
@@ -15,10 +12,10 @@ export function SubsectionPage({ title, sections }: SubsectionPageProps) {
   const [active, setActive] = useState(sections[0])
 
   return (
-    <div className="subsection-page">
-      <h1 className="subsection-page__title">{title}</h1>
+    <div className={subsectionPageCss.subsectionPage}>
+      <h1 className={subsectionPageCss.subsectionPageTitle}>{title}</h1>
 
-      <div className="subsection-page__pills">
+      <div className={subsectionPageCss.subsectionPagePills}>
         {sections.map((section) => (
           <button
             key={section}
@@ -30,7 +27,7 @@ export function SubsectionPage({ title, sections }: SubsectionPageProps) {
         ))}
       </div>
 
-      <div className="subsection-page__content panel">
+      <div className={subsectionPageCss.subsectionPageContent + ' ' + subsectionPageCss.panel}>
         <p>
           Conteúdo de <strong>{active}</strong> ainda não foi desenhado — assim que você tiver o
           layout dessa parte, a gente monta igual fizemos com Capítulos.

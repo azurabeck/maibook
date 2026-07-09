@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AlertTriangle, Lightbulb, MapPin, ImageIcon, Send, ChevronRight } from 'lucide-react'
 import { aiProvider } from '@/services/ai'
 import { useProjectStore } from '@/store/useProjectStore'
+import { copilotPanelCss } from './css'
 
 // #region Dados mockados dos insights
 // Esses insights (avisos automáticos sobre inconsistências do livro)
@@ -43,9 +44,9 @@ export function CopilotPanel() {
   }
 
   return (
-    <aside className="panel copilot-panel">
+    <aside className={copilotPanelCss.panel + ' ' + copilotPanelCss.copilotPanel}>
       {/* #region Abas Copiloto / Notas */}
-      <div className="copilot-panel__tabs">
+      <div className={copilotPanelCss.copilotPanelTabs}>
         <button
           className={tab === 'copiloto' ? 'copilot-tab active' : 'copilot-tab'}
           onClick={() => setTab('copiloto')}
@@ -64,8 +65,8 @@ export function CopilotPanel() {
       {tab === 'copiloto' ? (
         <>
           {/* #region Mensagem de boas-vindas do copiloto */}
-          <div className="copilot-panel__intro">
-            <span className="copilot-panel__avatar">🤖</span>
+          <div className={copilotPanelCss.copilotPanelIntro}>
+            <span className={copilotPanelCss.copilotPanelAvatar}>🤖</span>
             <p>
               Olá! Eu sou seu copiloto. Estou aqui para ajudar você a escrever e manter tudo em
               ordem.
@@ -74,24 +75,24 @@ export function CopilotPanel() {
           {/* #endregion */}
 
           {/* #region Insights do livro */}
-          <div className="copilot-panel__insights-label">Insights do seu livro</div>
-          <ul className="copilot-panel__insights">
+          <div className={copilotPanelCss.copilotPanelInsightsLabel}>Insights do seu livro</div>
+          <ul className={copilotPanelCss.copilotPanelInsights}>
             {MOCK_INSIGHTS.map((insight, i) => (
               <li key={i} className={`insight insight--${insight.tone}`}>
                 <insight.icon size={15} />
                 <span>{insight.text}</span>
-                <ChevronRight size={14} className="insight__arrow" />
+                <ChevronRight size={14} className={copilotPanelCss.insightArrow} />
               </li>
             ))}
           </ul>
           {/* #endregion */}
 
           {/* #region Resposta da IA (quando existir) */}
-          {answer && <div className="copilot-panel__answer">{answer}</div>}
+          {answer && <div className={copilotPanelCss.copilotPanelAnswer}>{answer}</div>}
           {/* #endregion */}
 
           {/* #region Campo de pergunta */}
-          <div className="copilot-panel__ask">
+          <div className={copilotPanelCss.copilotPanelAsk}>
             <input
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
@@ -106,7 +107,7 @@ export function CopilotPanel() {
           {/* #endregion */}
         </>
       ) : (
-        <p className="copilot-panel__empty">Suas anotações livres sobre este capítulo aparecerão aqui.</p>
+        <p className={copilotPanelCss.copilotPanelEmpty}>Suas anotações livres sobre este capítulo aparecerão aqui.</p>
       )}
     </aside>
   )

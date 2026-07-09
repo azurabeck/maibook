@@ -1,4 +1,5 @@
 import { ListChecks, AlignLeft, Users, MapPin, Box, CircleHelp, CheckSquare } from 'lucide-react'
+import { overviewPanelCss } from './css'
 
 // #region Dados mockados da visão geral
 // Números de exemplo, iguais ao Figma. Depois esses valores vêm de
@@ -17,25 +18,25 @@ const STATS = [
 
 export function OverviewPanel() {
   return (
-    <aside className="panel overview-panel">
+    <aside className={overviewPanelCss.panel + ' ' + overviewPanelCss.overviewPanel}>
       {/* #region Lista de estatísticas */}
-      <div className="overview-panel__label">Visão Geral</div>
-      <ul className="overview-panel__stats">
+      <div className={overviewPanelCss.overviewPanelLabel}>Visão Geral</div>
+      <ul className={overviewPanelCss.overviewPanelStats}>
         {STATS.map((stat) => (
           <li key={stat.label}>
-            <span className="overview-panel__stat-name">
+            <span className={overviewPanelCss.overviewPanelStatName}>
               <stat.icon size={15} /> {stat.label}
             </span>
-            <span className="overview-panel__stat-value">{stat.value}</span>
+            <span className={overviewPanelCss.overviewPanelStatValue}>{stat.value}</span>
           </li>
         ))}
       </ul>
       {/* #endregion */}
 
       {/* #region Progresso de hoje */}
-      <div className="overview-panel__label">Hoje</div>
-      <p className="overview-panel__today-words">+ 2.143 palavras</p>
-      <p className="overview-panel__streak">🔥 Sequência de 14 dias</p>
+      <div className={overviewPanelCss.overviewPanelLabel}>Hoje</div>
+      <p className={overviewPanelCss.overviewPanelTodayWords}>+ 2.143 palavras</p>
+      <p className={overviewPanelCss.overviewPanelStreak}>🔥 Sequência de 14 dias</p>
       {/* #endregion */}
     </aside>
   )

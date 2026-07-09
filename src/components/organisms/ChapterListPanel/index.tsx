@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { MoreVertical, Plus, Pencil, Trash2 } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
+import { chapterListPanelCss } from './css'
 
 export function ChapterListPanel() {
   // pega do store a lista de capítulos, qual está ativo, e as ações disponíveis
@@ -62,28 +63,28 @@ export function ChapterListPanel() {
   // #endregion
 
   return (
-    <aside className="panel chapter-list">
+    <aside className={chapterListPanelCss.panel + ' ' + chapterListPanelCss.chapterList}>
       {/* #region Projeto atual */}
-      <div className="chapter-list__project">
-        <span className="chapter-list__project-label">Projeto atual</span>
-        <button className="chapter-list__project-name">
-          Nome do Livro <span className="chevron">⌄</span>
+      <div className={chapterListPanelCss.chapterListProject}>
+        <span className={chapterListPanelCss.chapterListProjectLabel}>Projeto atual</span>
+        <button className={chapterListPanelCss.chapterListProjectName}>
+          Nome do Livro <span className={chapterListPanelCss.chevron}>⌄</span>
         </button>
       </div>
       {/* #endregion */}
 
       {/* #region Lista de capítulos */}
-      <div className="chapter-list__section-label">Capítulos</div>
-      <ul className="chapter-list__items">
+      <div className={chapterListPanelCss.chapterListSectionLabel}>Capítulos</div>
+      <ul className={chapterListPanelCss.chapterListItems}>
         {chapters
           .slice()
           .sort((a, b) => a.order - b.order)
           .map((chapter) => (
-            <li key={chapter.id} className="chapter-list__row">
+            <li key={chapter.id} className={chapterListPanelCss.chapterListRow}>
               {renamingId === chapter.id ? (
                 // #region Modo de edição do título
                 <input
-                  className="chapter-list__rename-input"
+                  className={chapterListPanelCss.chapterListRenameInput}
                   value={renameValue}
                   autoFocus
                   onChange={(e) => setRenameValue(e.target.value)}
@@ -110,7 +111,7 @@ export function ChapterListPanel() {
 
                   {/* botão dos 3 pontinhos: separado do botão de seleção */}
                   <button
-                    className="chapter-list__item-menu-trigger"
+                    className={chapterListPanelCss.chapterListItemMenuTrigger}
                     onClick={(e) => toggleMenu(e, chapter.id)}
                     aria-label="Opções do capítulo"
                   >
@@ -119,12 +120,12 @@ export function ChapterListPanel() {
 
                   {/* #region Menu suspenso: Renomear / Deletar */}
                   {openMenuId === chapter.id && (
-                    <div className="chapter-list__menu" ref={menuRef}>
+                    <div className={chapterListPanelCss.chapterListMenu} ref={menuRef}>
                       <button onClick={() => startRename(chapter.id, chapter.title)}>
                         <Pencil size={14} /> Renomear
                       </button>
                       <button
-                        className="danger"
+                        className={chapterListPanelCss.danger}
                         onClick={() => handleDelete(chapter.id, chapter.title)}
                       >
                         <Trash2 size={14} /> Deletar
@@ -140,7 +141,7 @@ export function ChapterListPanel() {
       {/* #endregion */}
 
       {/* #region Novo capítulo */}
-      <button className="chapter-list__add" onClick={addChapter}>
+      <button className={chapterListPanelCss.chapterListAdd} onClick={addChapter}>
         <Plus size={16} /> Novo Capítulo
       </button>
       {/* #endregion */}

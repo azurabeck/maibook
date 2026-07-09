@@ -1,6 +1,7 @@
 import { NavLink, useParams } from 'react-router-dom'
 import { Sun, Moon, ChevronDown } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
+import { topNavCss } from './css'
 
 // #region Configuração das abas
 // Cada aba de topo do projeto. O "path" bate com as rotas filhas
@@ -19,13 +20,13 @@ export function TopNav() {
   const { projectId } = useParams()
 
   return (
-    <header className="top-nav">
+    <header className={topNavCss.topNav}>
       {/* #region Logo */}
-      <div className="top-nav__logo">MAIBOOK</div>
+      <div className={topNavCss.topNavLogo}>MAIBOOK</div>
       {/* #endregion */}
 
       {/* #region Abas de navegação do projeto */}
-      <nav className="top-nav__tabs">
+      <nav className={topNavCss.topNavTabs}>
         {TABS.map((tab) => (
           <NavLink
             key={tab.path}
@@ -40,9 +41,9 @@ export function TopNav() {
       {/* #endregion */}
 
       {/* #region Ações (tema + avatar) */}
-      <div className="top-nav__actions">
+      <div className={topNavCss.topNavActions}>
         <button
-          className="theme-toggle"
+          className={topNavCss.themeToggle}
           onClick={toggleTheme}
           aria-label="Alternar tema claro/escuro"
         >
@@ -50,8 +51,8 @@ export function TopNav() {
           {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
 
-        <button className="top-nav__avatar">
-          <span className="avatar-circle">A</span>
+        <button className={topNavCss.topNavAvatar}>
+          <span className={topNavCss.avatarCircle}>A</span>
           <ChevronDown size={14} />
         </button>
       </div>

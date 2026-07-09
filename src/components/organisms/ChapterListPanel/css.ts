@@ -1,0 +1,16 @@
+export const chapterListPanelCss = {
+  panel: 'panel',
+  chapterList: 'chapter-list',
+  chapterListProject: 'chapter-list__project',
+  chapterListProjectLabel: 'chapter-list__project-label',
+  chapterListProjectName: 'chapter-list__project-name',
+  chevron: 'chevron',
+  chapterListSectionLabel: 'chapter-list__section-label',
+  chapterListItems: 'chapter-list__items',
+  chapterListRow: 'chapter-list__row',
+  chapterListRenameInput: 'chapter-list__rename-input',
+  chapterListItemMenuTrigger: 'chapter-list__item-menu-trigger',
+  chapterListMenu: 'chapter-list__menu',
+  danger: 'danger',
+  chapterListAdd: 'chapter-list__add',
+} as const

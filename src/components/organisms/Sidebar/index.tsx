@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { sidebarCss } from './css'
 
 // Um ORGANISMO já é um pedaço "completo" de interface, com várias
 // moléculas/átomos juntos e, às vezes, alguma lógica própria
@@ -15,7 +16,7 @@ const TABS = [
 
 export function Sidebar() {
   return (
-    <nav className="sidebar">
+    <nav className={sidebarCss.sidebar}>
       <ul>
         {TABS.map((tab) => (
           <li key={tab.path}>
