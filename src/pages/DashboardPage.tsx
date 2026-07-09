@@ -1,32 +1,23 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  onSnapshot,
-} from 'firebase/firestore'
+import { Link, useNavigate } from 'react-router-dom'
+import { collection, addDoc, query, where, onSnapshot } from 'firebase/firestore'
+import { BookOpen, Moon, Plus, Sun } from 'lucide-react'
 import { db, auth } from '@/services/firebase'
 import { Button } from '@/components/atoms/Button'
+import { useTheme } from '@/contexts/ThemeContext'
 import type { BookProject } from '@/types'
 
 export function DashboardPage() {
   const [projects, setProjects] = useState<BookProject[]>([])
   const navigate = useNavigate()
+  const { theme, toggleTheme } = useTheme()
 
-  // useEffect roda um "efeito colateral" (side effect) — aqui,
-  // assinar os dados do Firestore em tempo real. O array vazio
-  // "[]" no final significa "rode isso só uma vez, quando o
-  // componente aparece na tela".
   useEffect(() => {
     const uid = auth.currentUser?.uid
     if (!uid) return
 
     const q = query(collection(db, 'projects'), where('ownerId', '==', uid))
 
-    // onSnapshot "escuta" mudanças nos dados em tempo real e chama
-    // essa função toda vez que algo muda no Firestore.
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(
         (doc) => ({ id: doc.id, ...doc.data() }) as BookProject,
@@ -34,9 +25,6 @@ export function DashboardPage() {
       setProjects(data)
     })
 
-    // Isso que é retornado é a função de "limpeza" (cleanup):
-    // roda quando o componente sai da tela, pra parar de escutar
-    // o Firestore e evitar vazamento de memória.
     return () => unsubscribe()
   }, [])
 
@@ -56,23 +44,71 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="dashboard-page">
-      <header>
-        <h1>Meus livros</h1>
-        <Button onClick={handleCreateProject}>+ Novo projeto</Button>
+    <div className="dashboard-shell">
+      <header className="top-nav top-nav--dashboard">
+        <Link to="/dashboard" className="top-nav__logo" aria-label="MAIBOOK dashboard">
+          MAIBOOK
+        </Link>
+
+        <nav className="top-nav__tabs dashboard-nav__tabs" aria-label="Navegação do dashboard">
+          <span className="top-nav__tab active">Projetos</span>
+          <span className="top-nav__tab">Recentes</span>
+          <span className="top-nav__tab">Modelos</span>
+        </nav>
+
+        <div className="top-nav__actions">
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label="Alternar tema claro/escuro"
+          >
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+          <button className="top-nav__avatar" type="button">
+            <span className="avatar-circle">A</span>
+          </button>
+        </div>
       </header>
 
-      <ul className="project-list">
-        {projects.map((project) => (
-          <li key={project.id}>
-            <button onClick={() => navigate(`/projeto/${project.id}/capitulos`)}>
-              {project.title}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <main className="dashboard-page">
+        <section className="dashboard-hero panel">
+          <div>
+            <span className="dashboard-hero__label">Biblioteca</span>
+            <h1>Meus livros</h1>
+            <p>Crie um novo projeto ou continue escrevendo de onde parou.</p>
+          </div>
 
-      {projects.length === 0 && <p>Você ainda não tem nenhum projeto. Crie o primeiro!</p>}
+          <Button onClick={handleCreateProject} className="dashboard-hero__button">
+            <Plus size={16} /> Novo projeto
+          </Button>
+        </section>
+
+        {projects.length > 0 ? (
+          <section className="dashboard-grid">
+            {projects.map((project) => (
+              <article key={project.id} className="project-card panel">
+                <div className="project-card__icon">
+                  <BookOpen size={20} />
+                </div>
+                <div>
+                  <h2>{project.title}</h2>
+                  <p>Última atualização salva no projeto.</p>
+                </div>
+                <button onClick={() => navigate(`/projeto/${project.id}/capitulos`)}>
+                  Abrir projeto
+                </button>
+              </article>
+            ))}
+          </section>
+        ) : (
+          <section className="dashboard-empty panel">
+            <BookOpen size={28} />
+            <h2>Você ainda não tem nenhum projeto.</h2>
+            <p>Crie o primeiro livro para liberar capítulos, estrutura, personagens e timeline.</p>
+            <Button onClick={handleCreateProject}>Criar primeiro projeto</Button>
+          </section>
+        )}
+      </main>
     </div>
   )
 }

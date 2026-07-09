@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { PublicPage } from '@/pages/PublicPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ProjectLayout } from '@/components/templates/ProjectLayout'
@@ -14,6 +15,10 @@ import { IdeasPage } from '@/pages/project/IdeasPage'
 export const router = createBrowserRouter([
   {
     path: '/',
+    element: <PublicPage />,
+  },
+  {
+    path: '/login',
     element: <LoginPage />,
   },
   {

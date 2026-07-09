@@ -12,14 +12,6 @@ const MOCK_CHAPTERS: Chapter[] = [
   { id: 'cap-04', projectId: 'mock', title: 'Capítulo 04', order: 4, content: '' },
   { id: 'cap-05', projectId: 'mock', title: 'Capítulo 05', order: 5, content: '' },
   { id: 'cap-06', projectId: 'mock', title: 'Capítulo 06', order: 6, content: '' },
-  {
-    id: 'cap-12',
-    projectId: 'mock',
-    title: 'Capítulo 12',
-    order: 12,
-    content:
-      'O vento frio soprou do norte quando a pequena comitiva avistou, ao longe, as muralhas cinzentas de Demeres. A cidade parecia adormecida sob um céu encoberto, como se o próprio mundo prendesse a respiração.\n\nTomas apertou o capuz enquanto Ceren observava em silêncio. Eles não sabiam que aquele seria o início de uma série de eventos que mudaria o destino de todos.',
-  },
 ]
 // #endregion
 
@@ -46,7 +38,7 @@ interface ProjectState {
 export const useProjectStore = create<ProjectState>((set) => ({
   currentProject: null,
   chapters: MOCK_CHAPTERS,
-  activeChapterId: 'cap-12',
+  activeChapterId: 'cap-01',
 
   // define qual é o projeto (livro) aberto no momento
   setCurrentProject: (project) => set({ currentProject: project }),

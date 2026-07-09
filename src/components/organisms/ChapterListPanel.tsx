@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent } from 'react'
+import type { MouseEvent as ReactMouseEvent } from 'react'
 import { MoreVertical, Plus, Pencil, Trash2 } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
 
@@ -20,7 +20,7 @@ export function ChapterListPanel() {
     // só precisa escutar cliques no documento enquanto algum menu está aberto
     if (!openMenuId) return
 
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: globalThis.MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setOpenMenuId(null)
       }
@@ -33,7 +33,7 @@ export function ChapterListPanel() {
 
   // #region Ações do menu
   // abre/fecha o menu do capítulo clicado, sem selecionar o capítulo
-  function toggleMenu(event: MouseEvent, chapterId: string) {
+  function toggleMenu(event: ReactMouseEvent<HTMLButtonElement>, chapterId: string) {
     event.stopPropagation()
     setOpenMenuId((current) => (current === chapterId ? null : chapterId))
   }
