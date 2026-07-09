@@ -1,0 +1,57 @@
+/* #region Tema Claro (padrão) */
+:root {
+  /* fundo da página e dos painéis */
+  --bg-page: #f6f5f9;
+  --bg-panel: #ffffff;
+  --bg-panel-alt: #fbfafd;
+
+  /* bordas e divisores */
+  --border: #ececf2;
+  --border-strong: #e0dfe8;
+
+  /* texto */
+  --text-primary: #1c1b1f;
+  --text-secondary: #8b899a;
+  --text-muted: #b3b1c0;
+
+  /* marca / destaque (roxo -> rosa, usado no logo e nos estados ativos) */
+  --accent-purple: #7b61ff;
+  --accent-purple-soft: #efeaff;
+  --accent-pink: #ee5fb0;
+  --accent-gradient: linear-gradient(90deg, var(--accent-purple), var(--accent-pink));
+
+  /* estados semânticos (usados nos "insights" da IA) */
+  --warn: #f5a623;
+  --info: #7b61ff;
+  --danger: #ef5b5b;
+
+  /* raio de borda padrão do app */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+/* #endregion */
+
+/* #region Tema Escuro (ativado via [data-theme='dark'] na tag <html>) */
+[data-theme='dark'] {
+  --bg-page: #18171d;
+  --bg-panel: #201f27;
+  --bg-panel-alt: #26252e;
+
+  --border: #302f39;
+  --border-strong: #3a3944;
+
+  --text-primary: #f2f1f6;
+  --text-secondary: #9895a6;
+  --text-muted: #6b6976;
+
+  --accent-purple: #8f77ff;
+  --accent-purple-soft: #2c2740;
+  --accent-pink: #f072bb;
+  --accent-gradient: linear-gradient(90deg, var(--accent-purple), var(--accent-pink));
+
+  --warn: #f5a623;
+  --info: #8f77ff;
+  --danger: #f07070;
+}
+/* #endregion */
