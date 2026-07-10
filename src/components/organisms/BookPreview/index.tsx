@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { BookOpen, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { BookOpen, Download, LoaderCircle, X } from 'lucide-react'
 import type { Chapter, ChapterFooter, ChapterGrid, FooterPosition } from '@/types'
 import { getPageFormat } from '@/constants/pageFormats'
 import { HeaderPreview } from '@/components/organisms/ChapterHeader/index'
@@ -241,6 +241,8 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
   const [open, setOpen] = useState(false)
   const [pages, setPages] = useState<PreviewPage[]>([])
   const [paginating, setPaginating] = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const bookRef = useRef<HTMLDivElement>(null)
   const orderedChapters = useMemo(() => [...chapters].sort((a, b) => a.order - b.order), [chapters])
 
   useEffect(() => {
@@ -252,6 +254,67 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
     })
     return () => window.cancelAnimationFrame(frame)
   }, [open, orderedChapters])
+
+  async function downloadPdf() {
+    if (!bookRef.current || paginating || !pages.length || downloadingPdf) return
+
+    setDownloadingPdf(true)
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
+      const pageElements = Array.from(
+        bookRef.current.querySelectorAll<HTMLElement>('[data-book-page="true"]'),
+      )
+
+      if (!pageElements.length) return
+
+      let pdf: InstanceType<typeof jsPDF> | null = null
+
+      for (let index = 0; index < pageElements.length; index += 1) {
+        const page = pages[index]
+        const element = pageElements[index]
+        const orientation = page.width > page.height ? 'landscape' : 'portrait'
+
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+        })
+
+        const image = canvas.toDataURL('image/jpeg', 0.96)
+
+        if (!pdf) {
+          pdf = new jsPDF({
+            orientation,
+            unit: 'mm',
+            format: [page.width, page.height],
+            compress: true,
+          })
+        } else {
+          pdf.addPage([page.width, page.height], orientation)
+        }
+
+        pdf.addImage(image, 'JPEG', 0, 0, page.width, page.height, undefined, 'FAST')
+      }
+
+      const safeTitle = (bookTitle || 'livro')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9-_]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase() || 'livro'
+
+      pdf?.save(`${safeTitle}.pdf`)
+    } catch (error) {
+      console.error('Falha ao gerar PDF:', error)
+      window.alert('Não foi possível gerar o PDF. Tente novamente.')
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
 
   return (
     <>
@@ -267,14 +330,26 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
               <BookOpen size={18} />
               <div><h2>{bookTitle || 'Visualização do livro'}</h2><span>Paginação real, margens e composição editorial</span></div>
             </div>
-            <button className={bookPreviewCss.close} type="button" onClick={() => setOpen(false)} aria-label="Fechar visualização"><X size={18} /></button>
+            <div className={bookPreviewCss.topbarActions}>
+              <button
+                className={bookPreviewCss.download}
+                type="button"
+                onClick={() => void downloadPdf()}
+                disabled={paginating || !pages.length || downloadingPdf}
+                title="Baixar livro em PDF"
+              >
+                {downloadingPdf ? <LoaderCircle className={bookPreviewCss.spinner} size={16} /> : <Download size={16} />}
+                <span>{downloadingPdf ? 'Gerando PDF...' : 'Baixar PDF'}</span>
+              </button>
+              <button className={bookPreviewCss.close} type="button" onClick={() => setOpen(false)} aria-label="Fechar visualização"><X size={18} /></button>
+            </div>
           </header>
 
           <main className={bookPreviewCss.viewport}>
             {paginating ? <div className={bookPreviewCss.empty}>Formatando e separando as páginas...</div> : pages.length === 0 ? (
               <div className={bookPreviewCss.empty}>Nenhum capítulo para visualizar.</div>
             ) : (
-              <div className={bookPreviewCss.book}>
+              <div className={bookPreviewCss.book} ref={bookRef}>
                 {pages.map((page, pageIndex) => {
                   const { chapter, grid } = page
                   const isFirstChapterPage = page.chapterPageIndex === 0
@@ -283,6 +358,7 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
                       className={bookPreviewCss.page}
                       key={page.id}
                       data-active={chapter.id === activeChapterId}
+                      data-book-page="true"
                       style={{
                         width: `${page.width}mm`,
                         height: `${page.height}mm`,
