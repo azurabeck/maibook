@@ -99,3 +99,34 @@ export interface HeaderStructure extends HeaderStructureDraft {
   createdAt: number
   updatedAt: number
 }
+
+export type PageFormat = 'a4' | 'a5' | 'a6' | 'royal' | 'demi' | 'trade'
+export type PageOrientation = 'portrait' | 'landscape'
+export type TextAlignment = 'left' | 'justify'
+
+export interface GridStructureDraft {
+  name: string
+  pageFormat: PageFormat
+  orientation: PageOrientation
+  columns: 1 | 2
+  marginTop: number
+  marginRight: number
+  marginBottom: number
+  marginLeft: number
+  columnGap: number
+  fontFamily: string
+  fontSize: number
+  lineHeight: number
+  paragraphSpacing: number
+  firstLineIndent: number
+  textAlignment: TextAlignment
+  hyphenation: boolean
+  widowsAndOrphans: boolean
+}
+
+export interface GridStructure extends GridStructureDraft {
+  id: string
+  projectId: string
+  createdAt: number
+  updatedAt: number
+}
