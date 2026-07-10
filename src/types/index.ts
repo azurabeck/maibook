@@ -23,6 +23,11 @@ export interface ChapterGrid extends GridStructureDraft {
   sourceStructureName: string
 }
 
+export interface ChapterFooter extends FooterStructureDraft {
+  sourceStructureId: string
+  sourceStructureName: string
+}
+
 export interface Chapter {
   id: string
   projectId: string
@@ -31,6 +36,7 @@ export interface Chapter {
   content: string // texto do capítulo (rich text serializado, ex: HTML/JSON do editor)
   header?: ChapterHeader
   grid?: ChapterGrid
+  footer?: ChapterFooter
 }
 
 export interface Character {
@@ -131,6 +137,33 @@ export interface GridStructureDraft {
 }
 
 export interface GridStructure extends GridStructureDraft {
+  id: string
+  projectId: string
+  createdAt: number
+  updatedAt: number
+}
+
+export type FooterElementType = 'note' | 'chapter-title' | 'page-number'
+export type FooterPosition = 'left' | 'center' | 'right'
+export type FooterStructureLayout = 'number' | 'note-number' | 'note-chapter-number' | 'chapter-number'
+
+export interface FooterStructureItem {
+  type: FooterElementType
+  position: FooterPosition
+}
+
+export interface FooterStructureDraft {
+  name: string
+  layout: FooterStructureLayout
+  noteText: string
+  items: FooterStructureItem[]
+  fontFamily: string
+  fontSize: number
+  borderTop: boolean
+  spacingTop: number
+}
+
+export interface FooterStructure extends FooterStructureDraft {
   id: string
   projectId: string
   createdAt: number

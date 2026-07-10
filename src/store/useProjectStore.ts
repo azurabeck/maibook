@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { BookProject, Chapter, ChapterGrid, ChapterHeader } from '@/types'
+import type { BookProject, Chapter, ChapterFooter, ChapterGrid, ChapterHeader } from '@/types'
 import { subscribeToProject } from '@/services/firestore/projects'
 import {
   createChapter,
@@ -10,6 +10,8 @@ import {
   updateChapterHeaderInFirestore,
   updateChapterGridInFirestore,
   updateAllChaptersGridInFirestore,
+  updateChapterFooterInFirestore,
+  updateAllChaptersFooterInFirestore,
 } from '@/services/firestore/chapters'
 
 // #region Debounce da gravação de conteúdo
@@ -49,6 +51,8 @@ interface ProjectState {
   updateChapterHeader: (chapterId: string, header: ChapterHeader | null) => void
   updateChapterGrid: (chapterId: string, grid: ChapterGrid | null) => Promise<void>
   updateAllChaptersGrid: (grid: ChapterGrid) => Promise<void>
+  updateChapterFooter: (chapterId: string, footer: ChapterFooter | null) => Promise<void>
+  updateAllChaptersFooter: (footer: ChapterFooter) => Promise<void>
   addChapter: () => Promise<void>
   renameChapter: (chapterId: string, newTitle: string) => void
   deleteChapter: (chapterId: string) => void
@@ -211,6 +215,50 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       await updateAllChaptersGridInFirestore(projectId, chapterIds, grid)
     } catch (error) {
       console.error('Falha ao aplicar grid em todos os capítulos:', error)
+      throw error
+    } finally {
+      set({ savingChapterId: null })
+    }
+  },
+
+
+  updateChapterFooter: async (chapterId, footer) => {
+    const projectId = get().currentProject?.id
+    if (!projectId) return
+
+    set((state) => ({
+      chapters: state.chapters.map((chapter) =>
+        chapter.id === chapterId
+          ? { ...chapter, ...(footer ? { footer } : { footer: undefined }) }
+          : chapter,
+      ),
+      savingChapterId: chapterId,
+    }))
+
+    try {
+      await updateChapterFooterInFirestore(projectId, chapterId, footer)
+    } catch (error) {
+      console.error('Falha ao aplicar footer no capítulo:', error)
+      throw error
+    } finally {
+      if (get().savingChapterId === chapterId) set({ savingChapterId: null })
+    }
+  },
+
+  updateAllChaptersFooter: async (footer) => {
+    const projectId = get().currentProject?.id
+    const chapterIds = get().chapters.map((chapter) => chapter.id)
+    if (!projectId || !chapterIds.length) return
+
+    set((state) => ({
+      chapters: state.chapters.map((chapter) => ({ ...chapter, footer })),
+      savingChapterId: state.activeChapterId,
+    }))
+
+    try {
+      await updateAllChaptersFooterInFirestore(projectId, chapterIds, footer)
+    } catch (error) {
+      console.error('Falha ao aplicar footer em todos os capítulos:', error)
       throw error
     } finally {
       set({ savingChapterId: null })

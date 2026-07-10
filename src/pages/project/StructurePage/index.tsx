@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { HeaderStructureManager } from '@/components/organisms/HeaderStructureManager/index'
 import { GridStructureManager } from '@/components/organisms/GridStructureManager/index'
+import { FooterStructureManager } from '@/components/organisms/FooterStructureManager/index'
 import { useProjectStore } from '@/store/useProjectStore'
 import { structurePageCss as css } from './css'
 import { structurePageSections } from './type'
@@ -32,6 +33,8 @@ export function StructurePage() {
           <HeaderStructureManager projectId={projectId} />
         ) : activeSection === 'Grid' && projectId ? (
           <GridStructureManager projectId={projectId} />
+        ) : activeSection === 'Footer' && projectId ? (
+          <FooterStructureManager projectId={projectId} />
         ) : (
           <div className={css.placeholder}>
             <p>

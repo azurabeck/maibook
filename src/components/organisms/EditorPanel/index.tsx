@@ -16,6 +16,7 @@ import {
 import { useProjectStore } from '@/store/useProjectStore'
 import { ChapterHeader } from '@/components/organisms/ChapterHeader/index'
 import { ChapterGridSelector } from '@/components/organisms/ChapterGridSelector/index'
+import { ChapterFooterSelector } from '@/components/organisms/ChapterFooterSelector/index'
 import { BookPreview } from '@/components/organisms/BookPreview/index'
 import { editorPanelCss } from './css'
 
@@ -29,7 +30,7 @@ const ALIGN_ICONS = [AlignLeft, AlignCenter]
 // #endregion
 
 export function EditorPanel() {
-  const { currentProject, chapters, activeChapterId, updateChapterContent, updateChapterHeader, updateChapterGrid, updateAllChaptersGrid, savingChapterId } = useProjectStore()
+  const { currentProject, chapters, activeChapterId, updateChapterContent, updateChapterHeader, updateChapterGrid, updateAllChaptersGrid, updateChapterFooter, updateAllChaptersFooter, savingChapterId } = useProjectStore()
   const activeChapter = chapters.find((ch) => ch.id === activeChapterId)
   const isSaving = savingChapterId === activeChapterId
   const grid = activeChapter?.grid
@@ -64,6 +65,14 @@ export function EditorPanel() {
               currentGrid={activeChapter.grid}
               onApplyCurrent={(selectedGrid) => updateChapterGrid(activeChapter.id, selectedGrid)}
               onApplyAll={updateAllChaptersGrid}
+            />
+          )}
+          {currentProject && (
+            <ChapterFooterSelector
+              projectId={currentProject.id}
+              currentFooter={activeChapter.footer}
+              onApplyCurrent={(selectedFooter) => updateChapterFooter(activeChapter.id, selectedFooter)}
+              onApplyAll={updateAllChaptersFooter}
             />
           )}
           <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} />

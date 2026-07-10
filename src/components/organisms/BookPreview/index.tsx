@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BookOpen, X } from 'lucide-react'
-import type { Chapter, ChapterGrid } from '@/types'
+import type { Chapter, ChapterFooter, ChapterGrid, FooterPosition } from '@/types'
 import { getPageFormat } from '@/constants/pageFormats'
 import { HeaderPreview } from '@/components/organisms/ChapterHeader/index'
 import { bookPreviewCss } from './css'
@@ -29,8 +29,43 @@ interface PreviewPage {
 
 const MM_TO_PX = 96 / 25.4
 const PT_TO_PX = 96 / 72
-const PAGE_NUMBER_RESERVE_MM = 9
+const DEFAULT_FOOTER_RESERVE_MM = 9
 const HEADER_CONTENT_GAP_MM = 6
+
+function getFooterReserveMm(footer?: ChapterFooter) {
+  if (!footer) return DEFAULT_FOOTER_RESERVE_MM
+  const textHeightMm = footer.fontSize * 0.3528 * 1.4
+  const spacingMm = footer.spacingTop / MM_TO_PX
+  return Math.max(DEFAULT_FOOTER_RESERVE_MM, textHeightMm + spacingMm + 5)
+}
+
+function FooterPreview({ footer, chapterTitle, pageNumber }: { footer: ChapterFooter; chapterTitle: string; pageNumber: number }) {
+  const content = (type: ChapterFooter['items'][number]['type']) => {
+    if (type === 'note') return footer.noteText
+    if (type === 'chapter-title') return chapterTitle
+    return String(pageNumber)
+  }
+
+  return (
+    <div
+      className={bookPreviewCss.footer}
+      style={{
+        fontFamily: footer.fontFamily,
+        fontSize: `${footer.fontSize}pt`,
+        paddingTop: footer.spacingTop,
+        borderTop: footer.borderTop ? '1px solid currentColor' : 'none',
+      }}
+    >
+      {(['left', 'center', 'right'] as FooterPosition[]).map((position) => (
+        <div key={position}>
+          {footer.items.filter((item) => item.position === position).map((item) => (
+            <span key={item.type}>{content(item.type)}</span>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function splitParagraphs(content: string): string[] {
   return content
@@ -136,7 +171,7 @@ function paginateChapter(chapter: Chapter): PreviewPage[] {
   const baseContentHeightMm = height
     - (grid?.marginTop ?? 18)
     - (grid?.marginBottom ?? 20)
-    - PAGE_NUMBER_RESERVE_MM
+    - getFooterReserveMm(chapter.footer)
 
   const paragraphs = splitParagraphs(chapter.content)
   if (!paragraphs.length) {
@@ -252,7 +287,6 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
                         width: `${page.width}mm`,
                         height: `${page.height}mm`,
                         padding: `${grid?.marginTop ?? 18}mm ${grid?.marginRight ?? 16}mm ${grid?.marginBottom ?? 20}mm ${grid?.marginLeft ?? 16}mm`,
-                        ['--page-number-reserve' as string]: `${PAGE_NUMBER_RESERVE_MM}mm`,
                       }}
                     >
                       <span className={bookPreviewCss.chapterLabel}>{chapter.title}</span>
@@ -285,7 +319,20 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
                           </p>
                         )) : <p>Este capítulo ainda não possui texto.</p>}
                       </div>
-                      <span className={bookPreviewCss.pageNumber}>{pageIndex + 1}</span>
+                      {chapter.footer ? (
+                        <div
+                          className={bookPreviewCss.footerWrapper}
+                          style={{
+                            left: `${grid?.marginLeft ?? 16}mm`,
+                            right: `${grid?.marginRight ?? 16}mm`,
+                            bottom: '5mm',
+                          }}
+                        >
+                          <FooterPreview footer={chapter.footer} chapterTitle={chapter.title} pageNumber={pageIndex + 1} />
+                        </div>
+                      ) : (
+                        <span className={bookPreviewCss.pageNumber}>{pageIndex + 1}</span>
+                      )}
                     </article>
                   )
                 })}

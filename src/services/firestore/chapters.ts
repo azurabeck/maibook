@@ -18,7 +18,7 @@
 
 import { addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, orderBy, query, updateDoc, writeBatch } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { Chapter, ChapterGrid, ChapterHeader } from '@/types'
+import type { Chapter, ChapterFooter, ChapterGrid, ChapterHeader } from '@/types'
 
 function chaptersCollection(projectId: string) {
   return collection(db, 'projects', projectId, 'chapters')
@@ -101,6 +101,27 @@ export async function updateAllChaptersGridInFirestore(
 ) {
   const batch = writeBatch(db)
   chapterIds.forEach((chapterId) => batch.update(chapterDoc(projectId, chapterId), { grid }))
+  await batch.commit()
+}
+
+
+export async function updateChapterFooterInFirestore(
+  projectId: string,
+  chapterId: string,
+  footer: ChapterFooter | null,
+) {
+  await updateDoc(chapterDoc(projectId, chapterId), {
+    footer: footer ?? deleteField(),
+  })
+}
+
+export async function updateAllChaptersFooterInFirestore(
+  projectId: string,
+  chapterIds: string[],
+  footer: ChapterFooter,
+) {
+  const batch = writeBatch(db)
+  chapterIds.forEach((chapterId) => batch.update(chapterDoc(projectId, chapterId), { footer }))
   await batch.commit()
 }
 
