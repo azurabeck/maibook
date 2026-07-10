@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { BookProject, Chapter } from '@/types'
+import type { BookProject, Chapter, ChapterHeader } from '@/types'
 import { subscribeToProject } from '@/services/firestore/projects'
 import {
   createChapter,
@@ -7,6 +7,7 @@ import {
   renameChapterInFirestore,
   subscribeToChapters,
   updateChapterContentInFirestore,
+  updateChapterHeaderInFirestore,
 } from '@/services/firestore/chapters'
 
 // #region Debounce da gravação de conteúdo
@@ -16,6 +17,7 @@ import {
 // isso não precisa (e não deve) disparar re-render de ninguém.
 const CONTENT_SAVE_DEBOUNCE_MS = 800
 const contentSaveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const headerSaveTimers = new Map<string, ReturnType<typeof setTimeout>>()
 // #endregion
 
 // #region Status de carregamento do projeto
@@ -42,6 +44,7 @@ interface ProjectState {
 
   setActiveChapter: (chapterId: string | null) => void
   updateChapterContent: (chapterId: string, content: string) => void
+  updateChapterHeader: (chapterId: string, header: ChapterHeader | null) => void
   addChapter: () => Promise<void>
   renameChapter: (chapterId: string, newTitle: string) => void
   deleteChapter: (chapterId: string) => void
@@ -101,6 +104,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     unsubscribeChapters = null
     contentSaveTimers.forEach((timer) => clearTimeout(timer))
     contentSaveTimers.clear()
+    headerSaveTimers.forEach((timer) => clearTimeout(timer))
+    headerSaveTimers.clear()
   },
   // #endregion
 
@@ -134,6 +139,35 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }, CONTENT_SAVE_DEBOUNCE_MS)
 
     contentSaveTimers.set(chapterId, timer)
+  },
+
+  updateChapterHeader: (chapterId, header) => {
+    set((state) => ({
+      chapters: state.chapters.map((chapter) =>
+        chapter.id === chapterId
+          ? { ...chapter, ...(header ? { header } : { header: undefined }) }
+          : chapter,
+      ),
+    }))
+
+    const projectId = get().currentProject?.id
+    if (!projectId) return
+
+    const existingTimer = headerSaveTimers.get(chapterId)
+    if (existingTimer) clearTimeout(existingTimer)
+
+    set({ savingChapterId: chapterId })
+
+    const timer = setTimeout(() => {
+      updateChapterHeaderInFirestore(projectId, chapterId, header)
+        .catch((error) => console.error('Falha ao salvar cabeçalho do capítulo:', error))
+        .finally(() => {
+          if (get().savingChapterId === chapterId) set({ savingChapterId: null })
+        })
+      headerSaveTimers.delete(chapterId)
+    }, CONTENT_SAVE_DEBOUNCE_MS)
+
+    headerSaveTimers.set(chapterId, timer)
   },
 
   // cria um novo capítulo no Firestore, já dentro do projeto atual,
@@ -184,6 +218,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (timer) {
       clearTimeout(timer)
       contentSaveTimers.delete(chapterId)
+    }
+
+    const headerTimer = headerSaveTimers.get(chapterId)
+    if (headerTimer) {
+      clearTimeout(headerTimer)
+      headerSaveTimers.delete(chapterId)
     }
 
     if (!projectId) return

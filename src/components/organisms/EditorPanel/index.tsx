@@ -14,6 +14,7 @@ import {
   MoreVertical,
 } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
+import { ChapterHeader } from '@/components/organisms/ChapterHeader/index'
 import { editorPanelCss } from './css'
 
 // #region Ícones da barra de ferramentas
@@ -26,7 +27,7 @@ const ALIGN_ICONS = [AlignLeft, AlignCenter]
 // #endregion
 
 export function EditorPanel() {
-  const { chapters, activeChapterId, updateChapterContent, savingChapterId } = useProjectStore()
+  const { currentProject, chapters, activeChapterId, updateChapterContent, updateChapterHeader, savingChapterId } = useProjectStore()
   const activeChapter = chapters.find((ch) => ch.id === activeChapterId)
   const isSaving = savingChapterId === activeChapterId
 
@@ -81,6 +82,14 @@ export function EditorPanel() {
         <Image size={16} />
       </div>
       {/* #endregion */}
+
+      {currentProject && (
+        <ChapterHeader
+          projectId={currentProject.id}
+          value={activeChapter.header ?? null}
+          onChange={(header) => updateChapterHeader(activeChapter.id, header)}
+        />
+      )}
 
       {/* #region Área de texto */}
       <textarea

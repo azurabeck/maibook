@@ -16,9 +16,9 @@
 // memória (no client) mesmo ele não sendo salvo dentro do doc do
 // Firestore, já que o caminho da subcoleção já carrega essa info.
 
-import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { Chapter } from '@/types'
+import type { Chapter, ChapterHeader } from '@/types'
 
 function chaptersCollection(projectId: string) {
   return collection(db, 'projects', projectId, 'chapters')
@@ -71,6 +71,17 @@ export async function updateChapterContentInFirestore(
   content: string,
 ) {
   await updateDoc(chapterDoc(projectId, chapterId), { content })
+}
+
+
+export async function updateChapterHeaderInFirestore(
+  projectId: string,
+  chapterId: string,
+  header: ChapterHeader | null,
+) {
+  await updateDoc(chapterDoc(projectId, chapterId), {
+    header: header ?? deleteField(),
+  })
 }
 
 export async function deleteChapterInFirestore(projectId: string, chapterId: string) {

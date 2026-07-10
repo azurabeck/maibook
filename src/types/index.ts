@@ -13,12 +13,18 @@ export interface BookProject {
   footerText?: string // texto de rodapé padrão do livro
 }
 
+export interface ChapterHeader extends HeaderStructureDraft {
+  sourceStructureId: string
+  sourceStructureName: string
+}
+
 export interface Chapter {
   id: string
   projectId: string
   title: string
   order: number // usado pra ordenação dos capítulos
   content: string // texto do capítulo (rich text serializado, ex: HTML/JSON do editor)
+  header?: ChapterHeader
 }
 
 export interface Character {
