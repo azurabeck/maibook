@@ -13,9 +13,19 @@ injectStyleSheet('project-layout-template-css', `
   min-height: 0;
   padding: 20px 24px;
 }
+
+.project-layout__loading {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
 `)
 
 export const projectLayoutCss = {
   projectLayout: 'project-layout',
   projectLayoutContent: 'project-layout__content',
+  projectLayoutLoading: 'project-layout__loading',
 } as const

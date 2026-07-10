@@ -1,89 +1,189 @@
 import { create } from 'zustand'
 import type { BookProject, Chapter } from '@/types'
+import { renameProject, subscribeToProject } from '@/services/firestore/projects'
+import {
+  createChapter,
+  deleteChapterInFirestore,
+  renameChapterInFirestore,
+  subscribeToChapters,
+  updateChapterContentInFirestore,
+} from '@/services/firestore/chapters'
 
-// #region Dados de exemplo
-// Enquanto a integração de capítulos com o Firestore não existe,
-// usamos alguns capítulos "mockados" só pra ter algo na tela.
-// Quando plugarmos o Firestore de verdade, isso sai daqui.
-const MOCK_CHAPTERS: Chapter[] = [
-  { id: 'cap-01', projectId: 'mock', title: 'Capítulo 01', order: 1, content: '' },
-  { id: 'cap-02', projectId: 'mock', title: 'Capítulo 02', order: 2, content: '' },
-  { id: 'cap-03', projectId: 'mock', title: 'Capítulo 03', order: 3, content: '' },
-  { id: 'cap-04', projectId: 'mock', title: 'Capítulo 04', order: 4, content: '' },
-  { id: 'cap-05', projectId: 'mock', title: 'Capítulo 05', order: 5, content: '' },
-  { id: 'cap-06', projectId: 'mock', title: 'Capítulo 06', order: 6, content: '' },
-]
+// #region Debounce da gravação de conteúdo
+// Cada tecla digitada no editor não pode virar uma escrita no
+// Firestore (custo e limite de escritas, além de deixar tudo lento).
+// Guardamos um timer por capítulo aqui fora do estado da store —
+// isso não precisa (e não deve) disparar re-render de ninguém.
+const CONTENT_SAVE_DEBOUNCE_MS = 800
+const contentSaveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+// #endregion
+
+// #region Status de carregamento do projeto
+// 'idle'      -> nenhum projeto sendo observado ainda
+// 'loading'   -> aguardando o primeiro retorno do Firestore
+// 'ready'     -> projeto encontrado e carregado
+// 'not-found' -> documento não existe (id errado ou sem permissão)
+export type ProjectStatus = 'idle' | 'loading' | 'ready' | 'not-found'
 // #endregion
 
 // #region Tipos do estado
 interface ProjectState {
   currentProject: BookProject | null
+  projectStatus: ProjectStatus
   chapters: Chapter[]
   activeChapterId: string | null
+  savingChapterId: string | null // id do capítulo com escrita pendente/em andamento
+  chaptersError: string | null // última falha ao ler/escrever capítulos (ex: permissão negada)
 
-  setCurrentProject: (project: BookProject | null) => void
-  setChapters: (chapters: Chapter[]) => void
+  // conecta a store ao Firestore para um projeto específico (chamado
+  // pelo ProjectLayout ao entrar em /projeto/:projectId)
+  loadProject: (projectId: string) => void
+  // desconecta os listeners do Firestore (chamado ao sair do projeto)
+  unloadProject: () => void
+
   setActiveChapter: (chapterId: string | null) => void
   updateChapterContent: (chapterId: string, content: string) => void
-  addChapter: () => void
+  addChapter: () => Promise<void>
   renameChapter: (chapterId: string, newTitle: string) => void
   deleteChapter: (chapterId: string) => void
+  renameCurrentProject: (newTitle: string) => void
 }
 // #endregion
 
-// #region Store (Zustand)
-// Zustand é bem mais simples que Redux: um único hook guarda o
-// estado e as ações que o alteram. Qualquer componente pode ler ou
-// atualizar esse estado global sem precisar de Provider/reducers.
-export const useProjectStore = create<ProjectState>((set) => ({
+// Guardamos as funções de "unsubscribe" fora do estado da store —
+// são só um detalhe de infraestrutura, não algo que a UI precisa ler.
+let unsubscribeProject: (() => void) | null = null
+let unsubscribeChapters: (() => void) | null = null
+
+export const useProjectStore = create<ProjectState>((set, get) => ({
   currentProject: null,
-  chapters: MOCK_CHAPTERS,
-  activeChapterId: 'cap-01',
+  projectStatus: 'idle',
+  chapters: [],
+  activeChapterId: null,
+  savingChapterId: null,
+  chaptersError: null,
 
-  // define qual é o projeto (livro) aberto no momento
-  setCurrentProject: (project) => set({ currentProject: project }),
+  // #region Conectar/desconectar o projeto ativo
+  loadProject: (projectId) => {
+    // se já tinha um projeto sendo observado, encerra os listeners
+    // antigos antes de abrir os novos (evita vazamento e dados cruzados)
+    get().unloadProject()
 
-  // substitui a lista inteira de capítulos (ex: após buscar do Firestore)
-  setChapters: (chapters) => set({ chapters }),
+    set({
+      projectStatus: 'loading',
+      currentProject: null,
+      chapters: [],
+      activeChapterId: null,
+    })
+
+    unsubscribeProject = subscribeToProject(projectId, (project) => {
+      if (!project) {
+        set({ projectStatus: 'not-found' })
+        return
+      }
+      set({ currentProject: project, projectStatus: 'ready' })
+    })
+
+    unsubscribeChapters = subscribeToChapters(projectId, (chapters) => {
+      set((state) => {
+        // mantém o capítulo ativo se ele ainda existir na lista nova;
+        // senão, cai pro primeiro capítulo disponível
+        const stillExists = chapters.some((ch) => ch.id === state.activeChapterId)
+        return {
+          chapters,
+          activeChapterId: stillExists ? state.activeChapterId : (chapters[0]?.id ?? null),
+        }
+      })
+    })
+  },
+
+  unloadProject: () => {
+    unsubscribeProject?.()
+    unsubscribeChapters?.()
+    unsubscribeProject = null
+    unsubscribeChapters = null
+    contentSaveTimers.forEach((timer) => clearTimeout(timer))
+    contentSaveTimers.clear()
+  },
+  // #endregion
 
   // marca qual capítulo está sendo editado agora
   setActiveChapter: (chapterId) => set({ activeChapterId: chapterId }),
 
-  // atualiza o texto de um capítulo específico, sem mexer nos outros
-  updateChapterContent: (chapterId, content) =>
+  // atualiza o texto na tela imediatamente (otimista) e agenda a
+  // gravação no Firestore com debounce, pra não escrever a cada tecla
+  updateChapterContent: (chapterId, content) => {
     set((state) => ({
-      chapters: state.chapters.map((ch) =>
-        ch.id === chapterId ? { ...ch, content } : ch,
-      ),
-    })),
+      chapters: state.chapters.map((ch) => (ch.id === chapterId ? { ...ch, content } : ch)),
+    }))
 
-  // cria um novo capítulo vazio no fim da lista e já o seleciona
-  addChapter: () =>
-    set((state) => {
-      const nextOrder = state.chapters.length + 1
-      const newChapter: Chapter = {
-        id: `cap-${Date.now()}`,
-        projectId: state.currentProject?.id ?? 'mock',
-        title: `Capítulo ${String(nextOrder).padStart(2, '0')}`,
-        order: nextOrder,
-        content: '',
-      }
-      return {
-        chapters: [...state.chapters, newChapter],
-        activeChapterId: newChapter.id,
-      }
-    }),
+    const projectId = get().currentProject?.id
+    if (!projectId) return
 
-  // troca só o título de um capítulo específico
-  renameChapter: (chapterId, newTitle) =>
+    const existingTimer = contentSaveTimers.get(chapterId)
+    if (existingTimer) clearTimeout(existingTimer)
+
+    set({ savingChapterId: chapterId })
+
+    const timer = setTimeout(() => {
+      updateChapterContentInFirestore(projectId, chapterId, content)
+        .catch((error) => console.error('Falha ao salvar capítulo:', error))
+        .finally(() => {
+          // só limpa o indicador de "salvando" se ninguém mais digitou
+          // enquanto isso (senão já existe um novo timer rodando)
+          if (get().savingChapterId === chapterId) set({ savingChapterId: null })
+        })
+      contentSaveTimers.delete(chapterId)
+    }, CONTENT_SAVE_DEBOUNCE_MS)
+
+    contentSaveTimers.set(chapterId, timer)
+  },
+
+  // cria um novo capítulo no Firestore, já dentro do projeto atual,
+  // e o seleciona assim que o id vier de volta
+  addChapter: async () => {
+    const projectId = get().currentProject?.id
+    if (!projectId) return
+
+    const nextOrder = get().chapters.length + 1
+    const title = `Capítulo ${String(nextOrder).padStart(2, '0')}`
+
+    set({ chaptersError: null })
+
+    try {
+      const newChapterId = await createChapter(projectId, nextOrder, title)
+      set({ activeChapterId: newChapterId })
+    } catch (error) {
+      // motivo mais comum pra cair aqui: as Security Rules do
+      // Firestore ainda não liberam escrita na subcoleção
+      // "chapters" (ver firestore.rules na raiz do projeto e
+      // publicar em Firebase Console > Firestore Database > Regras)
+      console.error('Falha ao criar capítulo:', error)
+      set({
+        chaptersError:
+          'Não consegui criar o capítulo. Verifique as regras do Firestore (permissão negada) e sua conexão.',
+      })
+    }
+  },
+
+  // troca o título na tela na hora (otimista) e grava no Firestore
+  renameChapter: (chapterId, newTitle) => {
+    const projectId = get().currentProject?.id
+
     set((state) => ({
-      chapters: state.chapters.map((ch) =>
-        ch.id === chapterId ? { ...ch, title: newTitle } : ch,
-      ),
-    })),
+      chapters: state.chapters.map((ch) => (ch.id === chapterId ? { ...ch, title: newTitle } : ch)),
+    }))
 
-  // remove um capítulo da lista; se ele estava ativo, seleciona outro no lugar
-  deleteChapter: (chapterId) =>
+    if (!projectId) return
+    renameChapterInFirestore(projectId, chapterId, newTitle).catch((error) =>
+      console.error('Falha ao renomear capítulo:', error),
+    )
+  },
+
+  // remove da tela na hora (otimista) e apaga no Firestore
+  deleteChapter: (chapterId) => {
+    const projectId = get().currentProject?.id
+
     set((state) => {
       const remaining = state.chapters.filter((ch) => ch.id !== chapterId)
       const wasActive = state.activeChapterId === chapterId
@@ -91,6 +191,30 @@ export const useProjectStore = create<ProjectState>((set) => ({
         chapters: remaining,
         activeChapterId: wasActive ? (remaining[0]?.id ?? null) : state.activeChapterId,
       }
-    }),
+    })
+
+    const timer = contentSaveTimers.get(chapterId)
+    if (timer) {
+      clearTimeout(timer)
+      contentSaveTimers.delete(chapterId)
+    }
+
+    if (!projectId) return
+    deleteChapterInFirestore(projectId, chapterId).catch((error) =>
+      console.error('Falha ao deletar capítulo:', error),
+    )
+  },
+
+  // renomeia o projeto (livro) atual: atualiza a tela na hora
+  // (otimista) e grava no Firestore
+  renameCurrentProject: (newTitle) => {
+    const project = get().currentProject
+    if (!project) return
+
+    set({ currentProject: { ...project, title: newTitle } })
+
+    renameProject(project.id, newTitle).catch((error) =>
+      console.error('Falha ao renomear projeto:', error),
+    )
+  },
 }))
-// #endregion

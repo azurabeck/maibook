@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { collection, addDoc, query, where, onSnapshot } from 'firebase/firestore'
+import { onAuthStateChanged } from 'firebase/auth'
 import { BookOpen, Moon, Plus, Sun } from 'lucide-react'
-import { db, auth } from '@/services/firebase'
+import { auth } from '@/services/firebase'
+import { createProject, subscribeToUserProjects } from '@/services/firestore/projects'
 import { Button } from '@/components/atoms/Button/index'
 import { useTheme } from '@/contexts/ThemeContext'
 import type { BookProject } from '@/types'
@@ -14,34 +15,37 @@ export function DashboardPage() {
   const { theme, toggleTheme } = useTheme()
 
   useEffect(() => {
-    const uid = auth.currentUser?.uid
-    if (!uid) return
+    // onAuthStateChanged garante que a gente só monta a query de
+    // projetos depois que o Firebase Auth confirmou (ou não) o uid —
+    // logo após um F5, auth.currentUser pode ainda estar undefined
+    // por uma fração de segundo, e a busca antiga perdia esse caso.
+    let unsubscribeProjects: (() => void) | null = null
 
-    const q = query(collection(db, 'projects'), where('ownerId', '==', uid))
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      // troca de usuário (ou logout): encerra a query anterior antes de abrir outra
+      unsubscribeProjects?.()
+      unsubscribeProjects = null
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() }) as BookProject,
-      )
-      setProjects(data)
+      if (!user) {
+        setProjects([])
+        return
+      }
+
+      unsubscribeProjects = subscribeToUserProjects(user.uid, setProjects)
     })
 
-    return () => unsubscribe()
+    return () => {
+      unsubscribeAuth()
+      unsubscribeProjects?.()
+    }
   }, [])
 
   async function handleCreateProject() {
     const uid = auth.currentUser?.uid
     if (!uid) return
 
-    const newProject: Omit<BookProject, 'id'> = {
-      ownerId: uid,
-      title: 'Novo livro sem título',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }
-
-    const docRef = await addDoc(collection(db, 'projects'), newProject)
-    navigate(`/projeto/${docRef.id}/capitulos`)
+    const projectId = await createProject(uid)
+    navigate(`/projeto/${projectId}/capitulos`)
   }
 
   return (

@@ -141,6 +141,13 @@ injectStyleSheet('chapter-list-panel-organism-css', `
   font-weight: 600;
   padding: 8px 10px;
 }
+
+.chapter-list__error {
+  color: var(--danger);
+  font-size: 12px;
+  padding: 4px 10px 0;
+  line-height: 1.4;
+}
 `)
 
 export const chapterListPanelCss = {
@@ -160,4 +167,5 @@ export const chapterListPanelCss = {
   chapterListMenu: 'chapter-list__menu',
   danger: 'danger',
   chapterListAdd: 'chapter-list__add',
+  chapterListError: 'chapter-list__error',
 } as const

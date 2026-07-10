@@ -26,8 +26,9 @@ const ALIGN_ICONS = [AlignLeft, AlignCenter]
 // #endregion
 
 export function EditorPanel() {
-  const { chapters, activeChapterId, updateChapterContent } = useProjectStore()
+  const { chapters, activeChapterId, updateChapterContent, savingChapterId } = useProjectStore()
   const activeChapter = chapters.find((ch) => ch.id === activeChapterId)
+  const isSaving = savingChapterId === activeChapterId
 
   // conta palavras a partir do texto (separa por espaços em branco)
   const wordCount = activeChapter?.content.trim()
@@ -49,7 +50,7 @@ export function EditorPanel() {
         <div className={editorPanelCss.editorPanelTitleRow}>
           <h2>{activeChapter.title}</h2>
           <span className={editorPanelCss.editorPanelSaved}>
-            <span className={editorPanelCss.dot} /> Salvo há 2 min
+            <span className={editorPanelCss.dot} /> {isSaving ? 'Salvando...' : 'Salvo'}
           </span>
         </div>
         <div className={editorPanelCss.editorPanelHeaderActions}>
@@ -93,7 +94,7 @@ export function EditorPanel() {
 
       {/* #region Rodapé */}
       <div className={editorPanelCss.editorPanelFooter}>
-        {wordCount} palavras · Última edição há 2 min
+        {wordCount} palavras · {isSaving ? 'Salvando alterações...' : 'Tudo salvo no Firestore'}
       </div>
       {/* #endregion */}
     </section>

@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Regras de segurança do Firestore para o MAIBOOK.
+//
+// Modelo de dados:
+//   projects/{projectId}                     -> BookProject (tem ownerId)
+//   projects/{projectId}/chapters/{chapterId} -> Chapter (herda o dono do projeto pai)
+//
+// Regra geral: um usuário só pode ler/escrever um projeto (e o que
+// está dentro dele) se `ownerId` do projeto for o próprio uid dele.
+// Sem isso, qualquer pessoa autenticada poderia ler ou editar o
+// livro de qualquer outra pessoa só sabendo o id do documento.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /projects/{projectId} {
+      allow read, update, delete: if request.auth != null
+        && resource.data.ownerId == request.auth.uid;
+
+      // na criação ainda não existe "resource" (o doc não existe
+      // ainda), então validamos o dado que está chegando
+      allow create: if request.auth != null
+        && request.resource.data.ownerId == request.auth.uid;
+
+      // capítulos herdam a permissão do projeto pai: só o dono do
+      // projeto pode ler/criar/editar/apagar capítulos dele
+      match /chapters/{chapterId} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+      }
+    }
+  }
+}
