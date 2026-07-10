@@ -3,6 +3,35 @@
 // um objeto deve ter e de que tipo. O TS te avisa em tempo de
 // desenvolvimento se você usar um campo errado ou esquecer um.
 
+
+export interface ChapterOrderSuggestionItem {
+  chapterId: string
+  chapterTitle: string
+  currentOrder: number
+  suggestedOrder: number
+  reason: string
+}
+
+export interface ChapterOrderAnalysis {
+  summary: string
+  suggestions: ChapterOrderSuggestionItem[]
+  analyzedAt: number
+}
+
+export interface StoryTimelineEvent {
+  year: number
+  title: string
+  summary: string
+  chapterIds: string[]
+  chapterTitles: string[]
+}
+
+export interface StoryTimelineAnalysis {
+  overview: string
+  events: StoryTimelineEvent[]
+  analyzedAt: number
+}
+
 export interface BookProject {
   id: string
   ownerId: string // uid do usuário dono do projeto (vem do Firebase Auth)
@@ -11,6 +40,8 @@ export interface BookProject {
   updatedAt: number
   headerText?: string // texto de cabeçalho padrão do livro
   footerText?: string // texto de rodapé padrão do livro
+  chapterOrderAnalysis?: ChapterOrderAnalysis
+  storyTimelineAnalysis?: StoryTimelineAnalysis
 }
 
 export interface ChapterHeader extends HeaderStructureDraft {
@@ -39,19 +70,11 @@ export interface Chapter {
   footer?: ChapterFooter
 }
 
-export interface Character {
-  id: string
-  projectId: string
-  name: string
-  description?: string
-  imageUrl?: string
-  traits?: string[] // ex: ["corajoso", "impulsivo"]
-}
-
 export interface BookLocation {
   id: string
   projectId: string
   name: string
+  aliases?: string[]
   description?: string
   imageUrl?: string
 }
@@ -168,4 +191,74 @@ export interface FooterStructure extends FooterStructureDraft {
   projectId: string
   createdAt: number
   updatedAt: number
+}
+
+export interface CharacterDetailsAnalysis {
+  physicalCharacteristics: string
+  personality: string
+  age: string
+  mainPlot: string
+  motivation: string
+  analyzedChapterIds: string[]
+  analysisScope: 'all' | 'chapter'
+  analyzedAt: number
+}
+
+
+export type CharacterConnectionType = 'family' | 'friend' | 'enemy' | 'acquaintance'
+
+export interface CharacterConnection {
+  characterName: string
+  relationshipType: CharacterConnectionType
+  relationshipLabel: string
+  firstMeetingChapterId: string
+  firstMeetingChapterTitle: string
+  firstMeetingContext: string
+  currentContext: string
+}
+
+export interface CharacterConnectionTimelineEvent {
+  chapterId: string
+  chapterTitle: string
+  connectedCharacters: string[]
+  summary: string
+}
+
+export interface CharacterConnectionsAnalysis {
+  connections: CharacterConnection[]
+  timeline: CharacterConnectionTimelineEvent[]
+  analyzedChapterIds: string[]
+  analysisScope: 'all' | 'chapter'
+  analyzedAt: number
+}
+
+export interface CharacterChapterSummaryItem {
+  chapterId: string
+  chapterTitle: string
+  appeared: boolean
+  summary: string
+  keyActions: string[]
+  characterState: string
+}
+
+export interface CharacterChapterSummaryAnalysis {
+  chapters: CharacterChapterSummaryItem[]
+  analyzedChapterIds: string[]
+  analysisScope: 'all' | 'chapter'
+  analyzedAt: number
+}
+
+export interface Character {
+  id: string
+  projectId: string
+  name: string
+  aliases?: string[]
+  description?: string
+  imageUrl?: string
+  traits?: string[]
+  detailsAnalysis?: CharacterDetailsAnalysis
+  connectionsAnalysis?: CharacterConnectionsAnalysis
+  chapterSummaryAnalysis?: CharacterChapterSummaryAnalysis
+  createdAt?: number
+  updatedAt?: number
 }

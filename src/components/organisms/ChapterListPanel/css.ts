@@ -42,6 +42,62 @@ injectStyleSheet('chapter-list-panel-organism-css', `
   align-items: center;
 }
 
+
+.chapter-list__row {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.chapter-list__row--dragging {
+  opacity: 0.42;
+}
+
+.chapter-list__row--drop-before::before,
+.chapter-list__row--drop-after::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent-purple);
+  box-shadow: 0 0 0 3px var(--accent-purple-soft);
+  pointer-events: none;
+}
+
+.chapter-list__row--drop-before::before {
+  top: -2px;
+}
+
+.chapter-list__row--drop-after::after {
+  bottom: -2px;
+}
+
+.chapter-list__drag-handle {
+  flex: 0 0 auto;
+  width: 24px;
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+  opacity: 0.5;
+}
+
+.chapter-list__row:hover .chapter-list__drag-handle,
+.chapter-list__drag-handle:focus-visible {
+  opacity: 1;
+  color: var(--accent-purple);
+  background: var(--accent-purple-soft);
+}
+
+.chapter-list__drag-handle:active {
+  cursor: grabbing;
+}
+
 .chapter-list__item {
   flex: 1;
   display: block;
@@ -153,6 +209,10 @@ export const chapterListPanelCss = {
   chapterListSectionLabel: 'chapter-list__section-label',
   chapterListItems: 'chapter-list__items',
   chapterListRow: 'chapter-list__row',
+  chapterListRowDragging: 'chapter-list__row--dragging',
+  chapterListRowDropBefore: 'chapter-list__row--drop-before',
+  chapterListRowDropAfter: 'chapter-list__row--drop-after',
+  chapterListDragHandle: 'chapter-list__drag-handle',
   chapterListItem: 'chapter-list__item',
   chapterListItemActive: 'chapter-list__item active',
   chapterListRenameInput: 'chapter-list__rename-input',

@@ -12,6 +12,7 @@ import {
   updateAllChaptersGridInFirestore,
   updateChapterFooterInFirestore,
   updateAllChaptersFooterInFirestore,
+  reorderChaptersInFirestore,
 } from '@/services/firestore/chapters'
 
 // #region Debounce da gravação de conteúdo
@@ -56,6 +57,7 @@ interface ProjectState {
   addChapter: () => Promise<void>
   renameChapter: (chapterId: string, newTitle: string) => void
   deleteChapter: (chapterId: string) => void
+  reorderChapters: (orderedChapterIds: string[]) => Promise<void>
 }
 // #endregion
 
@@ -294,6 +296,35 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     renameChapterInFirestore(projectId, chapterId, newTitle).catch((error) =>
       console.error('Falha ao renomear capítulo:', error),
     )
+  },
+
+  reorderChapters: async (orderedChapterIds) => {
+    const projectId = get().currentProject?.id
+    if (!projectId || orderedChapterIds.length < 2) return
+
+    const previousChapters = get().chapters
+    const chapterById = new Map(previousChapters.map((chapter) => [chapter.id, chapter]))
+    const reorderedChapters = orderedChapterIds
+      .map((chapterId, index) => {
+        const chapter = chapterById.get(chapterId)
+        return chapter ? { ...chapter, order: index + 1 } : null
+      })
+      .filter((chapter): chapter is Chapter => chapter !== null)
+
+    if (reorderedChapters.length !== previousChapters.length) return
+
+    set({ chapters: reorderedChapters })
+
+    try {
+      await reorderChaptersInFirestore(
+        projectId,
+        reorderedChapters.map((chapter) => ({ id: chapter.id, order: chapter.order })),
+      )
+    } catch (error) {
+      set({ chapters: previousChapters })
+      console.error('Falha ao reordenar capítulos:', error)
+      throw error
+    }
   },
 
   // remove da tela na hora (otimista) e apaga no Firestore

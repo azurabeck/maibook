@@ -125,6 +125,18 @@ export async function updateAllChaptersFooterInFirestore(
   await batch.commit()
 }
 
+
+export async function reorderChaptersInFirestore(
+  projectId: string,
+  chapters: Array<{ id: string; order: number }>,
+) {
+  const batch = writeBatch(db)
+  chapters.forEach((chapter) => {
+    batch.update(chapterDoc(projectId, chapter.id), { order: chapter.order })
+  })
+  await batch.commit()
+}
+
 export async function deleteChapterInFirestore(projectId: string, chapterId: string) {
   await deleteDoc(chapterDoc(projectId, chapterId))
 }

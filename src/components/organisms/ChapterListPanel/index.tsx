@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent } from 'react'
-import { MoreVertical, Plus, Pencil, Trash2 } from 'lucide-react'
+import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent } from 'react'
+import { GripVertical, MoreVertical, Plus, Pencil, Trash2 } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
 import { chapterListPanelCss } from './css'
 
@@ -15,12 +15,17 @@ export function ChapterListPanel() {
     addChapter,
     renameChapter,
     deleteChapter,
+    reorderChapters,
   } = useProjectStore()
 
   // #region Estado do menu de contexto (3 pontinhos)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [draggedChapterId, setDraggedChapterId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+  const [dropPosition, setDropPosition] = useState<'before' | 'after'>('before')
+  const [reordering, setReordering] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   // #endregion
 
@@ -70,6 +75,69 @@ export function ChapterListPanel() {
   }
   // #endregion
 
+  const orderedChapters = chapters.slice().sort((a, b) => a.order - b.order)
+
+  function handleDragStart(event: ReactDragEvent<HTMLButtonElement>, chapterId: string) {
+    if (renamingId || reordering) {
+      event.preventDefault()
+      return
+    }
+
+    setDraggedChapterId(chapterId)
+    setOpenMenuId(null)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', chapterId)
+  }
+
+  function handleDragOver(event: ReactDragEvent<HTMLLIElement>, chapterId: string) {
+    if (!draggedChapterId || draggedChapterId === chapterId) return
+    event.preventDefault()
+
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const position = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after'
+    setDropTargetId(chapterId)
+    setDropPosition(position)
+    event.dataTransfer.dropEffect = 'move'
+  }
+
+  async function handleDrop(event: ReactDragEvent<HTMLLIElement>, targetChapterId: string) {
+    event.preventDefault()
+    const sourceChapterId = draggedChapterId || event.dataTransfer.getData('text/plain')
+    if (!sourceChapterId || sourceChapterId === targetChapterId) {
+      resetDragState()
+      return
+    }
+
+    const ids = orderedChapters.map((chapter) => chapter.id)
+    const sourceIndex = ids.indexOf(sourceChapterId)
+    const targetIndex = ids.indexOf(targetChapterId)
+    if (sourceIndex < 0 || targetIndex < 0) {
+      resetDragState()
+      return
+    }
+
+    ids.splice(sourceIndex, 1)
+    const adjustedTargetIndex = ids.indexOf(targetChapterId)
+    const insertIndex = dropPosition === 'after' ? adjustedTargetIndex + 1 : adjustedTargetIndex
+    ids.splice(insertIndex, 0, sourceChapterId)
+
+    setReordering(true)
+    resetDragState()
+    try {
+      await reorderChapters(ids)
+    } catch {
+      window.alert('Não foi possível salvar a nova ordem dos capítulos.')
+    } finally {
+      setReordering(false)
+    }
+  }
+
+  function resetDragState() {
+    setDraggedChapterId(null)
+    setDropTargetId(null)
+    setDropPosition('before')
+  }
+
   return (
     <aside className={chapterListPanelCss.panel + ' ' + chapterListPanelCss.chapterList}>
       {/* #region Projeto atual */}
@@ -84,11 +152,21 @@ export function ChapterListPanel() {
       {/* #region Lista de capítulos */}
       <div className={chapterListPanelCss.chapterListSectionLabel}>Capítulos</div>
       <ul className={chapterListPanelCss.chapterListItems}>
-        {chapters
-          .slice()
-          .sort((a, b) => a.order - b.order)
-          .map((chapter) => (
-            <li key={chapter.id} className={chapterListPanelCss.chapterListRow}>
+        {orderedChapters.map((chapter) => (
+            <li
+              key={chapter.id}
+              className={[
+                chapterListPanelCss.chapterListRow,
+                draggedChapterId === chapter.id ? chapterListPanelCss.chapterListRowDragging : '',
+                dropTargetId === chapter.id
+                  ? dropPosition === 'before'
+                    ? chapterListPanelCss.chapterListRowDropBefore
+                    : chapterListPanelCss.chapterListRowDropAfter
+                  : '',
+              ].filter(Boolean).join(' ')}
+              onDragOver={(event) => handleDragOver(event, chapter.id)}
+              onDrop={(event) => void handleDrop(event, chapter.id)}
+            >
               {renamingId === chapter.id ? (
                 // #region Modo de edição do título
                 <input
@@ -105,6 +183,18 @@ export function ChapterListPanel() {
                 // #endregion
               ) : (
                 <>
+                  <button
+                    className={chapterListPanelCss.chapterListDragHandle}
+                    type="button"
+                    draggable={!reordering}
+                    onDragStart={(event) => handleDragStart(event, chapter.id)}
+                    onDragEnd={resetDragState}
+                    aria-label={`Arrastar ${chapter.title}`}
+                    title="Arraste para reorganizar"
+                  >
+                    <GripVertical size={15} />
+                  </button>
+
                   {/* clicar no título torna o capítulo "ativo" no editor */}
                   <button
                     className={

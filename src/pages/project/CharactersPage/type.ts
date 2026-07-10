@@ -1,1 +1,1 @@
-export const charactersPageSections = ['Detalhes de personagens', 'Conexões de personagens', 'Resumo personagem por capítulo']
+export type CharacterPageSection = 'Detalhes do personagem' | 'Conexões' | 'Resumo por capítulo'

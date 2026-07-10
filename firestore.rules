@@ -30,6 +30,23 @@ service cloud.firestore {
       }
 
 
+
+      // personagens e análises geradas pela IA pertencem ao projeto pai
+      match /characters/{characterId} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+      }
+
+      match /gridStructures/{structureId} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+      }
+
+      match /footerStructures/{structureId} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+      }
+
       // modelos de cabeçalho também pertencem ao projeto pai
       match /headerStructures/{structureId} {
         allow read, write: if request.auth != null

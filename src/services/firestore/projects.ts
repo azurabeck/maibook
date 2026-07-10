@@ -14,7 +14,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { BookProject } from '@/types'
+import type { BookProject, ChapterOrderAnalysis, StoryTimelineAnalysis } from '@/types'
 
 const PROJECTS_COLLECTION = 'projects'
 
@@ -78,4 +78,12 @@ export async function renameProject(projectId: string, title: string) {
 // atividade recente (ex: toda vez que um capítulo é salvo).
 export async function touchProject(projectId: string) {
   await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), { updatedAt: Date.now() })
+}
+
+export async function updateChapterOrderAnalysis(projectId: string, chapterOrderAnalysis: ChapterOrderAnalysis) {
+  await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), { chapterOrderAnalysis, updatedAt: Date.now() })
+}
+
+export async function updateStoryTimelineAnalysis(projectId: string, storyTimelineAnalysis: StoryTimelineAnalysis) {
+  await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), { storyTimelineAnalysis, updatedAt: Date.now() })
 }
