@@ -19,7 +19,7 @@ export function SubsectionPage({ title, sections }: SubsectionPageProps) {
         {sections.map((section) => (
           <button
             key={section}
-            className={section === active ? 'pill active' : 'pill'}
+            className={section === active ? subsectionPageCss.subsectionPagePillActive : subsectionPageCss.subsectionPagePill}
             onClick={() => setActive(section)}
           >
             {section}

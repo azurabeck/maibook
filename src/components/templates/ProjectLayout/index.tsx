@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { TopNav } from '@/components/organisms/TopNav'
+import { TopNav } from '@/components/organisms/TopNav/index'
 import { projectLayoutCss } from './css'
 
 // Template: estrutura de qualquer página dentro de um projeto —

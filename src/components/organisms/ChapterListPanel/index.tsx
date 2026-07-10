@@ -101,8 +101,8 @@ export function ChapterListPanel() {
                   <button
                     className={
                       chapter.id === activeChapterId
-                        ? 'chapter-list__item active'
-                        : 'chapter-list__item'
+                        ? chapterListPanelCss.chapterListItemActive
+                        : chapterListPanelCss.chapterListItem
                     }
                     onClick={() => setActiveChapter(chapter.id)}
                   >

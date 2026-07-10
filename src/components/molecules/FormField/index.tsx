@@ -1,5 +1,5 @@
-import { Label } from '@/components/atoms/Label'
-import { Input } from '@/components/atoms/Input'
+import { Label } from '@/components/atoms/Label/index'
+import { Input } from '@/components/atoms/Input/index'
 import type { FormFieldProps } from './type'
 import { formFieldCss } from './css'
 

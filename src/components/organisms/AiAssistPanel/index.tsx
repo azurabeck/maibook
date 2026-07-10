@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button } from '@/components/atoms/Button'
+import { Button } from '@/components/atoms/Button/index'
 import { aiProvider } from '@/services/ai'
 import { aiAssistPanelCss } from './css'
 

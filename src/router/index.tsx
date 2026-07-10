@@ -1,13 +1,13 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { PublicPage } from '@/pages/PublicPage'
-import { LoginPage } from '@/pages/LoginPage'
-import { DashboardPage } from '@/pages/DashboardPage'
-import { ProjectLayout } from '@/components/templates/ProjectLayout'
-import { ChaptersPage } from '@/pages/project/ChaptersPage'
-import { StructurePage } from '@/pages/project/StructurePage'
-import { CharactersPage } from '@/pages/project/CharactersPage'
-import { TimelinePage } from '@/pages/project/TimelinePage'
-import { IdeasPage } from '@/pages/project/IdeasPage'
+import { PublicPage } from '@/pages/PublicPage/index'
+import { LoginPage } from '@/pages/LoginPage/index'
+import { DashboardPage } from '@/pages/DashboardPage/index'
+import { ProjectLayout } from '@/components/templates/ProjectLayout/index'
+import { ChaptersPage } from '@/pages/project/ChaptersPage/index'
+import { StructurePage } from '@/pages/project/StructurePage/index'
+import { CharactersPage } from '@/pages/project/CharactersPage/index'
+import { TimelinePage } from '@/pages/project/TimelinePage/index'
+import { IdeasPage } from '@/pages/project/IdeasPage/index'
 
 // createBrowserRouter define TODAS as rotas (URLs) da aplicação de
 // forma declarativa. Rotas "children" (filhas) renderizam dentro do

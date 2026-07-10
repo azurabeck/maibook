@@ -1,3 +1,49 @@
+import { injectStyleSheet } from '@/styles/createStyleSheet'
+
+
+injectStyleSheet('overview-panel-organism-css', `
+.overview-panel__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 16px 0 8px;
+}
+
+.overview-panel__label:first-child {
+  margin-top: 0;
+}
+
+.overview-panel__stats li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.overview-panel__stat-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+}
+
+.overview-panel__stat-value {
+  color: var(--text-secondary);
+}
+
+.overview-panel__today-words {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.overview-panel__streak {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+`)
+
 export const overviewPanelCss = {
   panel: 'panel',
   overviewPanel: 'overview-panel',

@@ -9,7 +9,7 @@ import { copilotPanelCss } from './css'
 // ainda não vêm de uma análise real — é conteúdo de exemplo só pra
 // bater com o Figma. Depois dá pra gerar isso de verdade cruzando
 // os dados de personagens/capítulos.
-const MOCK_INSIGHTS = [
+const MOCK_INSIGHTS: Array<{ icon: typeof AlertTriangle; tone: 'warn' | 'info' | 'danger'; text: string }> = [
   { icon: AlertTriangle, tone: 'warn', text: 'Tomas aparece com duas idades diferentes.' },
   { icon: Lightbulb, tone: 'info', text: 'Ceren não é citada há 18 capítulos.' },
   { icon: MapPin, tone: 'danger', text: 'Demeres ainda não possui descrição.' },
@@ -48,13 +48,13 @@ export function CopilotPanel() {
       {/* #region Abas Copiloto / Notas */}
       <div className={copilotPanelCss.copilotPanelTabs}>
         <button
-          className={tab === 'copiloto' ? 'copilot-tab active' : 'copilot-tab'}
+          className={tab === 'copiloto' ? copilotPanelCss.copilotTabActive : copilotPanelCss.copilotTab}
           onClick={() => setTab('copiloto')}
         >
           IA Copiloto
         </button>
         <button
-          className={tab === 'notas' ? 'copilot-tab active' : 'copilot-tab'}
+          className={tab === 'notas' ? copilotPanelCss.copilotTabActive : copilotPanelCss.copilotTab}
           onClick={() => setTab('notas')}
         >
           Notas
@@ -78,7 +78,7 @@ export function CopilotPanel() {
           <div className={copilotPanelCss.copilotPanelInsightsLabel}>Insights do seu livro</div>
           <ul className={copilotPanelCss.copilotPanelInsights}>
             {MOCK_INSIGHTS.map((insight, i) => (
-              <li key={i} className={`insight insight--${insight.tone}`}>
+              <li key={i} className={copilotPanelCss.insightByTone[insight.tone]}>
                 <insight.icon size={15} />
                 <span>{insight.text}</span>
                 <ChevronRight size={14} className={copilotPanelCss.insightArrow} />
