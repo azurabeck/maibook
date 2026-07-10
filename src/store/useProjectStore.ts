@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { BookProject, Chapter } from '@/types'
-import { renameProject, subscribeToProject } from '@/services/firestore/projects'
+import { subscribeToProject } from '@/services/firestore/projects'
 import {
   createChapter,
   deleteChapterInFirestore,
@@ -33,7 +33,6 @@ interface ProjectState {
   chapters: Chapter[]
   activeChapterId: string | null
   savingChapterId: string | null // id do capítulo com escrita pendente/em andamento
-  chaptersError: string | null // última falha ao ler/escrever capítulos (ex: permissão negada)
 
   // conecta a store ao Firestore para um projeto específico (chamado
   // pelo ProjectLayout ao entrar em /projeto/:projectId)
@@ -46,7 +45,6 @@ interface ProjectState {
   addChapter: () => Promise<void>
   renameChapter: (chapterId: string, newTitle: string) => void
   deleteChapter: (chapterId: string) => void
-  renameCurrentProject: (newTitle: string) => void
 }
 // #endregion
 
@@ -61,7 +59,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   chapters: [],
   activeChapterId: null,
   savingChapterId: null,
-  chaptersError: null,
 
   // #region Conectar/desconectar o projeto ativo
   loadProject: (projectId) => {
@@ -148,21 +145,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const nextOrder = get().chapters.length + 1
     const title = `Capítulo ${String(nextOrder).padStart(2, '0')}`
 
-    set({ chaptersError: null })
-
     try {
       const newChapterId = await createChapter(projectId, nextOrder, title)
       set({ activeChapterId: newChapterId })
     } catch (error) {
-      // motivo mais comum pra cair aqui: as Security Rules do
-      // Firestore ainda não liberam escrita na subcoleção
-      // "chapters" (ver firestore.rules na raiz do projeto e
-      // publicar em Firebase Console > Firestore Database > Regras)
       console.error('Falha ao criar capítulo:', error)
-      set({
-        chaptersError:
-          'Não consegui criar o capítulo. Verifique as regras do Firestore (permissão negada) e sua conexão.',
-      })
     }
   },
 
@@ -202,19 +189,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!projectId) return
     deleteChapterInFirestore(projectId, chapterId).catch((error) =>
       console.error('Falha ao deletar capítulo:', error),
-    )
-  },
-
-  // renomeia o projeto (livro) atual: atualiza a tela na hora
-  // (otimista) e grava no Firestore
-  renameCurrentProject: (newTitle) => {
-    const project = get().currentProject
-    if (!project) return
-
-    set({ currentProject: { ...project, title: newTitle } })
-
-    renameProject(project.id, newTitle).catch((error) =>
-      console.error('Falha ao renomear projeto:', error),
     )
   },
 }))

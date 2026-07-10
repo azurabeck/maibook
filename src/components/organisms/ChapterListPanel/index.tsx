@@ -15,8 +15,6 @@ export function ChapterListPanel() {
     addChapter,
     renameChapter,
     deleteChapter,
-    renameCurrentProject,
-    chaptersError,
   } = useProjectStore()
 
   // #region Estado do menu de contexto (3 pontinhos)
@@ -24,24 +22,6 @@ export function ChapterListPanel() {
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const menuRef = useRef<HTMLDivElement>(null)
-  // #endregion
-
-  // #region Estado de edição do nome do projeto
-  const [isEditingProjectName, setIsEditingProjectName] = useState(false)
-  const [projectNameValue, setProjectNameValue] = useState('')
-
-  function startEditingProjectName() {
-    if (!currentProject) return
-    setProjectNameValue(currentProject.title)
-    setIsEditingProjectName(true)
-  }
-
-  function commitProjectName() {
-    if (projectNameValue.trim()) {
-      renameCurrentProject(projectNameValue.trim())
-    }
-    setIsEditingProjectName(false)
-  }
   // #endregion
 
   // #region Fechar o menu ao clicar fora dele
@@ -95,27 +75,9 @@ export function ChapterListPanel() {
       {/* #region Projeto atual */}
       <div className={chapterListPanelCss.chapterListProject}>
         <span className={chapterListPanelCss.chapterListProjectLabel}>Projeto atual</span>
-        {isEditingProjectName ? (
-          <input
-            className={chapterListPanelCss.chapterListRenameInput}
-            value={projectNameValue}
-            autoFocus
-            onChange={(e) => setProjectNameValue(e.target.value)}
-            onBlur={commitProjectName}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitProjectName()
-              if (e.key === 'Escape') setIsEditingProjectName(false)
-            }}
-          />
-        ) : (
-          <button
-            className={chapterListPanelCss.chapterListProjectName}
-            onClick={startEditingProjectName}
-            title="Clique para renomear o projeto"
-          >
-            {currentProject?.title ?? 'Carregando...'} <Pencil size={12} />
-          </button>
-        )}
+        <button className={chapterListPanelCss.chapterListProjectName}>
+          {currentProject?.title ?? 'Carregando...'} <span className={chapterListPanelCss.chevron}>⌄</span>
+        </button>
       </div>
       {/* #endregion */}
 
@@ -190,7 +152,6 @@ export function ChapterListPanel() {
       <button className={chapterListPanelCss.chapterListAdd} onClick={addChapter}>
         <Plus size={16} /> Novo Capítulo
       </button>
-      {chaptersError && <p className={chapterListPanelCss.chapterListError}>{chaptersError}</p>}
       {/* #endregion */}
     </aside>
   )

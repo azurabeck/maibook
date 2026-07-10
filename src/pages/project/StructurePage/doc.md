@@ -1,15 +1,14 @@
 # StructurePage
 
-## Como funciona
+Página de estruturas reutilizáveis do livro.
 
-Página `StructurePage` organizada no mesmo padrão dos components.
+A aba **Cabeçalho** usa `HeaderStructureManager` e persiste os modelos em:
 
-- `index.tsx`: implementação principal.
-- `type.ts`: tipos públicos/locais.
-- `css.ts`: nomes de classes usados pela página.
-- `doc.md`: documentação rápida.
+```text
+projects/{projectId}/headerStructures/{structureId}
+```
 
-## Exemplo de import
+## Importação
 
 ```tsx
 import { StructurePage } from '@/pages/project/StructurePage'

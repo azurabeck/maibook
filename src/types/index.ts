@@ -56,3 +56,40 @@ export interface AiSuggestion {
   suggestion: string
   createdAt: number
 }
+
+export type HeaderAlignment = 'left' | 'center' | 'right'
+export type HeaderImageObjectFit = 'contain' | 'cover' | 'fill'
+
+export type HeaderStructureLayout =
+  | 'image-text'
+  | 'text-only'
+  | 'text-text'
+  | 'image-only'
+
+export interface HeaderStructureDraft {
+  name: string
+  layout: HeaderStructureLayout
+  primaryText: string
+  secondaryText: string
+  imageUrl: string
+  imageHeight: number
+  imageWidth: number
+  imageObjectFit: HeaderImageObjectFit
+  textAlignment: HeaderAlignment
+  imageAlignment: HeaderAlignment
+  fontSize: number
+  secondaryFontSize: number
+  fontFamily: string
+  bold: boolean
+  rowGap: number
+  textStartSpacing: number
+  borderTop: boolean
+  borderBottom: boolean
+}
+
+export interface HeaderStructure extends HeaderStructureDraft {
+  id: string
+  projectId: string
+  createdAt: number
+  updatedAt: number
+}
