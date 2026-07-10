@@ -42,6 +42,12 @@ injectStyleSheet('overview-panel-organism-css', `
   color: var(--text-secondary);
   margin: 0;
 }
+
+.overview-panel__stats li { border-radius: 7px; padding-left: 5px; padding-right: 5px; }
+.overview-panel__stats li:hover { background: var(--bg-panel-alt); }
+.overview-panel__progress { height: 5px; margin-top: 14px; overflow: hidden; border-radius: 999px; background: var(--bg-panel-alt); }
+.overview-panel__progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent-purple); transition: width .25s ease; }
+.overview-panel__goal { margin: 6px 0 0; color: var(--text-secondary); font-size: 10px; }
 `)
 
 export const overviewPanelCss = {
@@ -53,4 +59,6 @@ export const overviewPanelCss = {
   overviewPanelStatValue: 'overview-panel__stat-value',
   overviewPanelTodayWords: 'overview-panel__today-words',
   overviewPanelStreak: 'overview-panel__streak',
+  progress: 'overview-panel__progress',
+  goal: 'overview-panel__goal',
 } as const

@@ -1,4 +1,4 @@
-import type { AiProvider, CharacterAnalysisInput, TimelineAnalysisInput } from './types'
+import type { AiProvider, BookQuestionInput, CharacterAnalysisInput, TimelineAnalysisInput } from './types'
 import type { CharacterChapterSummaryAnalysis, CharacterConnectionsAnalysis, CharacterDetailsAnalysis, ChapterOrderAnalysis, StoryTimelineAnalysis } from '@/types'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim()
@@ -193,6 +193,34 @@ sugira 3 ideias curtas para continuar a cena ou o capítulo.
 
 Contexto:
 """${context}"""`)
+  },
+
+  async answerBookQuestion(input: BookQuestionInput) {
+    const chapterContext = input.chapters
+      .map((chapter) => `CAPÍTULO: ${chapter.title}\n${chapter.content}`)
+      .join('\n\n---\n\n')
+      .slice(0, 120000)
+
+    const characterContext = input.characters
+      .map((character) => `${character.name}${character.aliases.length ? ` (${character.aliases.join(', ')})` : ''}: ${character.details || 'sem análise cadastrada'}`)
+      .join('\n')
+
+    return callGemini(`Você é o copiloto editorial do livro "${input.bookTitle}".
+Responda à pergunta usando somente os dados fornecidos. Não invente fatos.
+Quando não houver evidência suficiente, diga isso claramente.
+Seja direto, útil e escreva em português do Brasil.
+
+PERGUNTA:
+${input.question}
+
+CAPÍTULO ATUAL:
+${input.activeChapter ? `${input.activeChapter.title}\n${input.activeChapter.content}` : 'nenhum selecionado'}
+
+PERSONAGENS CADASTRADOS:
+${characterContext || 'nenhum'}
+
+MANUSCRITO:
+${chapterContext}`)
   },
 
   async analyzeCharacterDetails(input) {

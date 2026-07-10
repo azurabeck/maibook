@@ -74,6 +74,14 @@ export async function updateChapterContentInFirestore(
 }
 
 
+export async function updateChapterNotesInFirestore(
+  projectId: string,
+  chapterId: string,
+  notes: string,
+) {
+  await updateDoc(chapterDoc(projectId, chapterId), { notes })
+}
+
 export async function updateChapterHeaderInFirestore(
   projectId: string,
   chapterId: string,

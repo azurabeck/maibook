@@ -8,6 +8,7 @@ import {
   subscribeToChapters,
   updateChapterContentInFirestore,
   updateChapterHeaderInFirestore,
+  updateChapterNotesInFirestore,
   updateChapterGridInFirestore,
   updateAllChaptersGridInFirestore,
   updateChapterFooterInFirestore,
@@ -49,6 +50,7 @@ interface ProjectState {
 
   setActiveChapter: (chapterId: string | null) => void
   updateChapterContent: (chapterId: string, content: string) => void
+  updateChapterNotes: (chapterId: string, notes: string) => Promise<void>
   updateChapterHeader: (chapterId: string, header: ChapterHeader | null) => void
   updateChapterGrid: (chapterId: string, grid: ChapterGrid | null) => Promise<void>
   updateAllChaptersGrid: (grid: ChapterGrid) => Promise<void>
@@ -149,6 +151,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }, CONTENT_SAVE_DEBOUNCE_MS)
 
     contentSaveTimers.set(chapterId, timer)
+  },
+
+  updateChapterNotes: async (chapterId, notes) => {
+    const projectId = get().currentProject?.id
+    if (!projectId) return
+
+    set((state) => ({
+      chapters: state.chapters.map((chapter) =>
+        chapter.id === chapterId ? { ...chapter, notes } : chapter,
+      ),
+    }))
+
+    await updateChapterNotesInFirestore(projectId, chapterId, notes)
   },
 
   updateChapterHeader: (chapterId, header) => {

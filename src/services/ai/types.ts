@@ -15,10 +15,19 @@ export interface TimelineAnalysisInput {
   chapters: Array<{ id: string; title: string; order: number; content: string }>
 }
 
+export interface BookQuestionInput {
+  question: string
+  bookTitle: string
+  activeChapter?: { title: string; content: string }
+  chapters: Array<{ title: string; content: string }>
+  characters: Array<{ name: string; aliases: string[]; details?: string }>
+}
+
 export interface AiProvider {
   name: string
   reviewGrammar(text: string): Promise<string>
   suggestIdea(context: string): Promise<string>
+  answerBookQuestion(input: BookQuestionInput): Promise<string>
   analyzeCharacterDetails(input: CharacterAnalysisInput): Promise<Omit<CharacterDetailsAnalysis, 'analyzedAt'>>
   analyzeCharacterConnections(input: CharacterAnalysisInput): Promise<Omit<CharacterConnectionsAnalysis, 'analyzedAt'>>
   analyzeCharacterChapterSummary(input: CharacterAnalysisInput): Promise<Omit<CharacterChapterSummaryAnalysis, 'analyzedAt'>>

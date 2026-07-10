@@ -68,6 +68,7 @@ export interface Chapter {
   header?: ChapterHeader
   grid?: ChapterGrid
   footer?: ChapterFooter
+  notes?: string
 }
 
 export interface BookLocation {

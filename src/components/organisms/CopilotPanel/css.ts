@@ -131,6 +131,17 @@ injectStyleSheet('copilot-panel-organism-css', `
   color: var(--text-secondary);
   font-size: 13px;
 }
+
+.copilot-panel__intro p { margin: 0; line-height: 1.45; }
+.copilot-panel__avatar { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; border-radius: 9px; background: var(--accent-purple-soft); color: var(--accent-purple); }
+.copilot-panel__ask button:disabled { opacity: .45; cursor: not-allowed; }
+.copilot-panel__answer { max-height: 240px; overflow: auto; line-height: 1.55; }
+.copilot-panel__notes { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.copilot-panel__notes-header strong { display: block; font-size: 13px; }
+.copilot-panel__notes-header span { display: block; margin-top: 3px; color: var(--text-secondary); font-size: 11px; }
+.copilot-panel__notes textarea { flex: 1; min-height: 220px; resize: none; padding: 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-panel-alt); color: var(--text-primary); font: inherit; font-size: 12px; line-height: 1.55; outline: none; }
+.copilot-panel__notes textarea:focus { border-color: var(--accent-purple); box-shadow: 0 0 0 2px var(--accent-purple-soft); }
+.copilot-panel__notes > button { align-self: flex-end; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid var(--accent-purple); border-radius: 9px; background: var(--accent-purple); color: white; font-size: 11px; font-weight: 700; }
 `)
 
 export const copilotPanelCss = {
@@ -156,4 +167,6 @@ export const copilotPanelCss = {
   copilotPanelAnswer: 'copilot-panel__answer',
   copilotPanelAsk: 'copilot-panel__ask',
   copilotPanelEmpty: 'copilot-panel__empty',
+  notes: 'copilot-panel__notes',
+  notesHeader: 'copilot-panel__notes-header',
 } as const
