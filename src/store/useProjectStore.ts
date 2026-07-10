@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { BookProject, Chapter, ChapterHeader } from '@/types'
+import type { BookProject, Chapter, ChapterGrid, ChapterHeader } from '@/types'
 import { subscribeToProject } from '@/services/firestore/projects'
 import {
   createChapter,
@@ -8,6 +8,8 @@ import {
   subscribeToChapters,
   updateChapterContentInFirestore,
   updateChapterHeaderInFirestore,
+  updateChapterGridInFirestore,
+  updateAllChaptersGridInFirestore,
 } from '@/services/firestore/chapters'
 
 // #region Debounce da gravação de conteúdo
@@ -45,6 +47,8 @@ interface ProjectState {
   setActiveChapter: (chapterId: string | null) => void
   updateChapterContent: (chapterId: string, content: string) => void
   updateChapterHeader: (chapterId: string, header: ChapterHeader | null) => void
+  updateChapterGrid: (chapterId: string, grid: ChapterGrid | null) => Promise<void>
+  updateAllChaptersGrid: (grid: ChapterGrid) => Promise<void>
   addChapter: () => Promise<void>
   renameChapter: (chapterId: string, newTitle: string) => void
   deleteChapter: (chapterId: string) => void
@@ -168,6 +172,49 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }, CONTENT_SAVE_DEBOUNCE_MS)
 
     headerSaveTimers.set(chapterId, timer)
+  },
+
+  updateChapterGrid: async (chapterId, grid) => {
+    const projectId = get().currentProject?.id
+    if (!projectId) return
+
+    set((state) => ({
+      chapters: state.chapters.map((chapter) =>
+        chapter.id === chapterId
+          ? { ...chapter, ...(grid ? { grid } : { grid: undefined }) }
+          : chapter,
+      ),
+      savingChapterId: chapterId,
+    }))
+
+    try {
+      await updateChapterGridInFirestore(projectId, chapterId, grid)
+    } catch (error) {
+      console.error('Falha ao aplicar grid no capítulo:', error)
+      throw error
+    } finally {
+      if (get().savingChapterId === chapterId) set({ savingChapterId: null })
+    }
+  },
+
+  updateAllChaptersGrid: async (grid) => {
+    const projectId = get().currentProject?.id
+    const chapterIds = get().chapters.map((chapter) => chapter.id)
+    if (!projectId || !chapterIds.length) return
+
+    set((state) => ({
+      chapters: state.chapters.map((chapter) => ({ ...chapter, grid })),
+      savingChapterId: state.activeChapterId,
+    }))
+
+    try {
+      await updateAllChaptersGridInFirestore(projectId, chapterIds, grid)
+    } catch (error) {
+      console.error('Falha ao aplicar grid em todos os capítulos:', error)
+      throw error
+    } finally {
+      set({ savingChapterId: null })
+    }
   },
 
   // cria um novo capítulo no Firestore, já dentro do projeto atual,

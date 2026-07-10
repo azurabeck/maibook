@@ -6,18 +6,13 @@ import {
   subscribeToGridStructures,
   updateGridStructure,
 } from '@/services/firestore/gridStructures'
-import type { GridStructure, GridStructureDraft, PageFormat } from '@/types'
+import type { GridStructure, GridStructureDraft } from '@/types'
+import { PAGE_FORMATS, getPageFormat } from '@/constants/pageFormats'
 import { gridStructureManagerCss as css } from './css'
 import type { GridStructureEditorProps, GridStructureManagerProps } from './type'
 
-const pageFormats: Array<{ id: PageFormat; name: string; size: string; width: number; height: number }> = [
-  { id: 'a4', name: 'A4', size: '210 × 297 mm', width: 210, height: 297 },
-  { id: 'a5', name: 'A5', size: '148 × 210 mm', width: 148, height: 210 },
-  { id: 'a6', name: 'A6', size: '105 × 148 mm', width: 105, height: 148 },
-  { id: 'trade', name: 'Trade', size: '152 × 229 mm', width: 152, height: 229 },
-  { id: 'royal', name: 'Royal', size: '156 × 234 mm', width: 156, height: 234 },
-  { id: 'demi', name: 'Demi', size: '138 × 216 mm', width: 138, height: 216 },
-]
+const pageFormats = PAGE_FORMATS
+const PT_TO_MM = 25.4 / 72
 
 const defaultDraft: GridStructureDraft = {
   name: '',
@@ -40,7 +35,7 @@ const defaultDraft: GridStructureDraft = {
 }
 
 function GridPreview({ structure, compact = false }: { structure: GridStructureDraft; compact?: boolean }) {
-  const format = pageFormats.find((item) => item.id === structure.pageFormat) ?? pageFormats[1]
+  const format = getPageFormat(structure.pageFormat)
   const portrait = structure.orientation === 'portrait'
   const pageWidth = portrait ? format.width : format.height
   const pageHeight = portrait ? format.height : format.width
@@ -61,16 +56,16 @@ function GridPreview({ structure, compact = false }: { structure: GridStructureD
           columnCount: structure.columns,
           columnGap: structure.columnGap * scale,
           fontFamily: structure.fontFamily,
-          fontSize: compact ? 4.5 : Math.max(7, structure.fontSize * 0.72),
+          fontSize: Math.max(compact ? 3.5 : 7, structure.fontSize * PT_TO_MM * scale),
           lineHeight: structure.lineHeight,
           textAlign: structure.textAlignment,
           hyphens: structure.hyphenation ? 'auto' : 'none',
         }}
       >
-        <p style={{ margin: `0 0 ${structure.paragraphSpacing * scale}px`, textIndent: structure.firstLineIndent * scale }}>
+        <p style={{ margin: `0 0 ${structure.paragraphSpacing * PT_TO_MM * scale}px`, textIndent: structure.firstLineIndent * scale }}>
           A luz atravessava a janela quando o primeiro capítulo começou. Cada palavra ocupava seu lugar na página, com ritmo, respiro e proporção.
         </p>
-        <p style={{ margin: `0 0 ${structure.paragraphSpacing * scale}px`, textIndent: structure.firstLineIndent * scale }}>
+        <p style={{ margin: `0 0 ${structure.paragraphSpacing * PT_TO_MM * scale}px`, textIndent: structure.firstLineIndent * scale }}>
           Este modelo define somente a área de conteúdo do livro. Cabeçalhos e rodapés permanecem independentes para que a composição seja reutilizável.
         </p>
         <p style={{ margin: 0, textIndent: structure.firstLineIndent * scale }}>

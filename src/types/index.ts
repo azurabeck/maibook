@@ -18,6 +18,11 @@ export interface ChapterHeader extends HeaderStructureDraft {
   sourceStructureName: string
 }
 
+export interface ChapterGrid extends GridStructureDraft {
+  sourceStructureId: string
+  sourceStructureName: string
+}
+
 export interface Chapter {
   id: string
   projectId: string
@@ -25,6 +30,7 @@ export interface Chapter {
   order: number // usado pra ordenação dos capítulos
   content: string // texto do capítulo (rich text serializado, ex: HTML/JSON do editor)
   header?: ChapterHeader
+  grid?: ChapterGrid
 }
 
 export interface Character {

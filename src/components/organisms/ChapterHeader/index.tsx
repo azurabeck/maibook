@@ -5,7 +5,7 @@ import { subscribeToHeaderStructures } from '@/services/firestore/headerStructur
 import { chapterHeaderCss } from './css'
 import type { ChapterHeaderProps, HeaderTemplatePreviewProps } from './type'
 
-function HeaderPreview({ structure, compact = false, editable = false, onTextChange }: HeaderTemplatePreviewProps) {
+export function HeaderPreview({ structure, compact = false, editable = false, onTextChange }: HeaderTemplatePreviewProps) {
   const hasImage = structure.layout === 'image-text' || structure.layout === 'image-only'
   const hasPrimaryText = structure.layout !== 'image-only'
   const hasSecondaryText = structure.layout === 'text-text'
