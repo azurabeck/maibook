@@ -37,24 +37,24 @@ export async function updateCharacterAliases(
   })
 }
 
-export async function updateCharacterDetails(
+// Grava detalhes + conexões + resumo por capítulo numa ÚNICA escrita
+// no Firestore (em vez de 3 updateDoc separados) — resultado da
+// análise combinada da IA (ver aiProvider.analyzeCharacterFull).
+export async function updateCharacterFullAnalysis(
   projectId: string,
   characterId: string,
-  detailsAnalysis: CharacterDetailsAnalysis,
+  analysis: {
+    detailsAnalysis: CharacterDetailsAnalysis
+    connectionsAnalysis: CharacterConnectionsAnalysis
+    chapterSummaryAnalysis: CharacterChapterSummaryAnalysis
+  },
 ) {
   await updateDoc(characterDoc(projectId, characterId), {
-    detailsAnalysis,
+    detailsAnalysis: analysis.detailsAnalysis,
+    connectionsAnalysis: analysis.connectionsAnalysis,
+    chapterSummaryAnalysis: analysis.chapterSummaryAnalysis,
     updatedAt: Date.now(),
   })
-}
-
-
-export async function updateCharacterConnections(projectId: string, characterId: string, connectionsAnalysis: CharacterConnectionsAnalysis) {
-  await updateDoc(characterDoc(projectId, characterId), { connectionsAnalysis, updatedAt: Date.now() })
-}
-
-export async function updateCharacterChapterSummary(projectId: string, characterId: string, chapterSummaryAnalysis: CharacterChapterSummaryAnalysis) {
-  await updateDoc(characterDoc(projectId, characterId), { chapterSummaryAnalysis, updatedAt: Date.now() })
 }
 
 export async function deleteCharacter(projectId: string, characterId: string) {

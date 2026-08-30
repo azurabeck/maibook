@@ -37,6 +37,19 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
       }
 
+      // ideias (notas da história e notas de personagem) também
+      // pertencem ao projeto pai
+      match /ideas/{ideaId} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+      }
+
+      // lugares e análises geradas pela IA também pertencem ao projeto pai
+      match /locations/{locationId} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+      }
+
       match /gridStructures/{structureId} {
         allow read, write: if request.auth != null
           && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;

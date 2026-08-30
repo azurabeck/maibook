@@ -21,6 +21,8 @@ injectStyleSheet('top-nav-organism-css', `
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .top-nav__tabs {

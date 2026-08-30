@@ -13,6 +13,7 @@ export function ChapterListPanel() {
     activeChapterId,
     setActiveChapter,
     addChapter,
+    renameProject,
     renameChapter,
     deleteChapter,
     reorderChapters,
@@ -29,6 +30,13 @@ export function ChapterListPanel() {
   const menuRef = useRef<HTMLDivElement>(null)
   // #endregion
 
+  // #region Estado do menu de contexto do projeto (3 pontinhos)
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false)
+  const [renamingProject, setRenamingProject] = useState(false)
+  const [projectRenameValue, setProjectRenameValue] = useState('')
+  const projectMenuRef = useRef<HTMLDivElement>(null)
+  // #endregion
+
   // #region Fechar o menu ao clicar fora dele
   useEffect(() => {
     // só precisa escutar cliques no documento enquanto algum menu está aberto
@@ -43,6 +51,39 @@ export function ChapterListPanel() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [openMenuId])
+
+  useEffect(() => {
+    if (!projectMenuOpen) return
+
+    function handleClickOutside(event: globalThis.MouseEvent) {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
+        setProjectMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [projectMenuOpen])
+  // #endregion
+
+  // #region Ações do menu do projeto
+  function toggleProjectMenu(event: ReactMouseEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+    setProjectMenuOpen((current) => !current)
+  }
+
+  function startProjectRename() {
+    setProjectRenameValue(currentProject?.title ?? '')
+    setRenamingProject(true)
+    setProjectMenuOpen(false)
+  }
+
+  function commitProjectRename() {
+    if (projectRenameValue.trim()) {
+      renameProject(projectRenameValue.trim())
+    }
+    setRenamingProject(false)
+  }
   // #endregion
 
   // #region Ações do menu
@@ -143,9 +184,48 @@ export function ChapterListPanel() {
       {/* #region Projeto atual */}
       <div className={chapterListPanelCss.chapterListProject}>
         <span className={chapterListPanelCss.chapterListProjectLabel}>Projeto atual</span>
-        <button className={chapterListPanelCss.chapterListProjectName}>
-          {currentProject?.title ?? 'Carregando...'} <span className={chapterListPanelCss.chevron}>⌄</span>
-        </button>
+        <div className={chapterListPanelCss.chapterListProjectRow}>
+          {renamingProject ? (
+            // #region Modo de edição do título do projeto
+            <input
+              className={chapterListPanelCss.chapterListRenameInput}
+              value={projectRenameValue}
+              autoFocus
+              onChange={(e) => setProjectRenameValue(e.target.value)}
+              onBlur={commitProjectRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitProjectRename()
+                if (e.key === 'Escape') setRenamingProject(false)
+              }}
+            />
+            // #endregion
+          ) : (
+            <>
+              <span className={chapterListPanelCss.chapterListProjectName}>
+                {currentProject?.title ?? 'Carregando...'}
+              </span>
+
+              {/* botão dos 3 pontinhos: abre o menu do projeto */}
+              <button
+                className={chapterListPanelCss.chapterListItemMenuTrigger}
+                onClick={toggleProjectMenu}
+                aria-label="Opções do projeto"
+              >
+                <MoreVertical size={16} />
+              </button>
+
+              {/* #region Menu suspenso: Renomear */}
+              {projectMenuOpen && (
+                <div className={chapterListPanelCss.chapterListMenu} ref={projectMenuRef}>
+                  <button onClick={startProjectRename}>
+                    <Pencil size={14} /> Renomear
+                  </button>
+                </div>
+              )}
+              {/* #endregion */}
+            </>
+          )}
+        </div>
       </div>
       {/* #endregion */}
 

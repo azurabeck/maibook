@@ -44,57 +44,26 @@ injectStyleSheet('copilot-panel-organism-css', `
   font-size: 20px;
 }
 
-.copilot-panel__insights-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.copilot-panel__insights {
+.copilot-panel__conversation {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.insight {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-panel-alt);
-}
-
-.insight span {
-  flex: 1;
-}
-
-.insight--warn svg {
-  color: var(--warn);
-}
-
-.insight--info svg {
-  color: var(--info);
-}
-
-.insight--danger svg {
-  color: var(--danger);
-}
-
-.insight__arrow {
-  opacity: 0.4;
-}
-
-.copilot-panel__answer {
-  font-size: 13px;
-  background: var(--accent-purple-soft);
-  padding: 10px;
-  border-radius: var(--radius-sm);
+  gap: 10px;
   margin-bottom: 12px;
-  white-space: pre-wrap;
 }
+
+.copilot-panel__exchange { display: grid; gap: 6px; }
+.copilot-panel__bubble-user { justify-self: end; display: flex; align-items: center; gap: 6px; max-width: 88%; padding: 8px 11px; border-radius: 12px 12px 2px 12px; background: var(--accent-purple-soft); color: var(--accent-purple); font-size: 12px; font-weight: 600; line-height: 1.5; white-space: pre-wrap; }
+.copilot-panel__bubble-ai { justify-self: start; max-width: 94%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px 12px 12px 2px; background: var(--bg-panel-alt); }
+.copilot-panel__bubble-ai strong { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; color: var(--accent-purple); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.copilot-panel__bubble-ai p { margin: 0; color: var(--text-primary); font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+.copilot-panel__loading { justify-self: start; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 12px 12px 12px 2px; background: var(--bg-panel-alt); color: var(--text-secondary); font-size: 12px; }
+.copilot-panel__spinner, .copilot-panel__spinner-on-solid { flex: 0 0 auto; width: 13px; height: 13px; border: 2px solid var(--accent-purple-soft); border-top-color: var(--accent-purple); border-radius: 50%; animation: copilot-panel-spin .7s linear infinite; }
+.copilot-panel__spinner-on-solid { width: 14px; height: 14px; border-color: rgba(255, 255, 255, .35); border-top-color: #fff; }
+@keyframes copilot-panel-spin { to { transform: rotate(360deg); } }
+.copilot-panel__ask-error { margin: 0; color: var(--danger); font-size: 11px; }
 
 .copilot-panel__ask {
   margin-top: auto;
@@ -135,7 +104,6 @@ injectStyleSheet('copilot-panel-organism-css', `
 .copilot-panel__intro p { margin: 0; line-height: 1.45; }
 .copilot-panel__avatar { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; border-radius: 9px; background: var(--accent-purple-soft); color: var(--accent-purple); }
 .copilot-panel__ask button:disabled { opacity: .45; cursor: not-allowed; }
-.copilot-panel__answer { max-height: 240px; overflow: auto; line-height: 1.55; }
 .copilot-panel__notes { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; }
 .copilot-panel__notes-header strong { display: block; font-size: 13px; }
 .copilot-panel__notes-header span { display: block; margin-top: 3px; color: var(--text-secondary); font-size: 11px; }
@@ -152,19 +120,14 @@ export const copilotPanelCss = {
   copilotTabActive: 'copilot-tab active',
   copilotPanelIntro: 'copilot-panel__intro',
   copilotPanelAvatar: 'copilot-panel__avatar',
-  copilotPanelInsightsLabel: 'copilot-panel__insights-label',
-  copilotPanelInsights: 'copilot-panel__insights',
-  insight: 'insight',
-  insightWarn: 'insight insight--warn',
-  insightInfo: 'insight insight--info',
-  insightDanger: 'insight insight--danger',
-  insightByTone: {
-    warn: 'insight insight--warn',
-    info: 'insight insight--info',
-    danger: 'insight insight--danger',
-  },
-  insightArrow: 'insight__arrow',
-  copilotPanelAnswer: 'copilot-panel__answer',
+  copilotConversation: 'copilot-panel__conversation',
+  exchange: 'copilot-panel__exchange',
+  bubbleUser: 'copilot-panel__bubble-user',
+  bubbleAi: 'copilot-panel__bubble-ai',
+  loadingBubble: 'copilot-panel__loading',
+  spinner: 'copilot-panel__spinner',
+  spinnerOnSolid: 'copilot-panel__spinner-on-solid',
+  askError: 'copilot-panel__ask-error',
   copilotPanelAsk: 'copilot-panel__ask',
   copilotPanelEmpty: 'copilot-panel__empty',
   notes: 'copilot-panel__notes',

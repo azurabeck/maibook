@@ -18,6 +18,8 @@ import { ChapterHeader } from '@/components/organisms/ChapterHeader/index'
 import { ChapterGridSelector } from '@/components/organisms/ChapterGridSelector/index'
 import { ChapterFooterSelector } from '@/components/organisms/ChapterFooterSelector/index'
 import { BookPreview } from '@/components/organisms/BookPreview/index'
+import { GrammarCheckModal } from '@/components/organisms/GrammarCheckModal/index'
+import { DialogueSuggestModal } from '@/components/organisms/DialogueSuggestModal/index'
 import { editorPanelCss } from './css'
 
 // #region Ícones da barra de ferramentas
@@ -75,10 +77,17 @@ export function EditorPanel() {
               onApplyAll={updateAllChaptersFooter}
             />
           )}
+          <GrammarCheckModal
+            key={`grammar-${activeChapter.id}`}
+            content={activeChapter.content}
+            onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
+          />
+          <DialogueSuggestModal
+            key={`dialogue-${activeChapter.id}`}
+            content={activeChapter.content}
+            onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
+          />
           <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} />
-          <span className={editorPanelCss.editorPanelWordCount}>{wordCount} palavras</span>
-          <Maximize2 size={16} />
-          <MoreVertical size={16} />
         </div>
       </div>
       {/* #endregion */}
@@ -101,6 +110,11 @@ export function EditorPanel() {
         <Quote size={16} />
         <Link size={16} />
         <Image size={16} />
+        <div className={editorPanelCss.toolbarMeta}>
+          <span className={editorPanelCss.editorPanelWordCount}>{wordCount} palavras</span>
+          <Maximize2 size={16} />
+          <MoreVertical size={16} />
+        </div>
       </div>
       {/* #endregion */}
 

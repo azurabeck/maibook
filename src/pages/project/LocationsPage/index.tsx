@@ -5,40 +5,39 @@ import {
   Clock3,
   Download,
   FileSearch,
+  MapPin,
+  MapPinned,
   Plus,
   RefreshCw,
   Search,
   Sparkles,
   Tag,
   Trash2,
-  UserRound,
-  UsersRound,
   X,
 } from 'lucide-react'
 import { aiProvider } from '@/services/ai'
 import {
-  createCharacter,
-  deleteCharacter,
-  subscribeToCharacters,
-  updateCharacterAliases,
-  updateCharacterFullAnalysis,
-} from '@/services/firestore/characters'
-import { updateCharacterDetectionAnalysis } from '@/services/firestore/projects'
+  createLocation,
+  deleteLocation,
+  subscribeToLocations,
+  updateLocationAliases,
+  updateLocationFullAnalysis,
+} from '@/services/firestore/locations'
+import { updateLocationDetectionAnalysis } from '@/services/firestore/projects'
 import { useProjectStore } from '@/store/useProjectStore'
-import type { Character, CharacterDetailsAnalysis } from '@/types'
-import { charactersPageCss as css } from './css'
-import type { CharacterPageSection } from './type'
+import type { BookLocation, LocationDetailsAnalysis } from '@/types'
+import { locationsPageCss as css } from './css'
+import type { LocationPageSection } from './type'
 
 const detailCards: Array<{
-  key: keyof Pick<CharacterDetailsAnalysis, 'physicalCharacteristics' | 'personality' | 'age' | 'mainPlot' | 'motivation'>
+  key: keyof Pick<LocationDetailsAnalysis, 'physicalDescription' | 'atmosphere' | 'significance' | 'history'>
   label: string
   eyebrow: string
 }> = [
-  { key: 'physicalCharacteristics', label: 'Características físicas', eyebrow: 'Aparência' },
-  { key: 'personality', label: 'Personalidade', eyebrow: 'Comportamento' },
-  { key: 'age', label: 'Idade', eyebrow: 'Linha da vida' },
-  { key: 'mainPlot', label: 'Enredo principal', eyebrow: 'Papel na história' },
-  { key: 'motivation', label: 'Motivação', eyebrow: 'Força motriz' },
+  { key: 'physicalDescription', label: 'Descrição física', eyebrow: 'Aparência' },
+  { key: 'atmosphere', label: 'Atmosfera', eyebrow: 'Clima emocional' },
+  { key: 'significance', label: 'Importância na trama', eyebrow: 'Papel na história' },
+  { key: 'history', label: 'História do lugar', eyebrow: 'Origem' },
 ]
 
 function htmlToText(value: string) {
@@ -56,15 +55,15 @@ function initials(name: string) {
     .join('')
 }
 
-export function CharactersPage() {
+export function LocationsPage() {
   const projectId = useProjectStore((state) => state.currentProject?.id)
-  const persistedDetection = useProjectStore((state) => state.currentProject?.characterDetectionAnalysis)
+  const persistedDetection = useProjectStore((state) => state.currentProject?.locationDetectionAnalysis)
   const chapters = useProjectStore((state) => state.chapters)
-  const [activeSection, setActiveSection] = useState<CharacterPageSection>('Detalhes do personagem')
-  const [characters, setCharacters] = useState<Character[]>([])
-  const [activeCharacterId, setActiveCharacterId] = useState<string | null>(null)
+  const [activeSection, setActiveSection] = useState<LocationPageSection>('Detalhes do lugar')
+  const [locations, setLocations] = useState<BookLocation[]>([])
+  const [activeLocationId, setActiveLocationId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [newCharacterName, setNewCharacterName] = useState('')
+  const [newLocationName, setNewLocationName] = useState('')
   const [creating, setCreating] = useState(false)
   const [analysisOpen, setAnalysisOpen] = useState(false)
   const [analysisScope, setAnalysisScope] = useState<'all' | 'chapter'>('all')
@@ -81,9 +80,9 @@ export function CharactersPage() {
 
   useEffect(() => {
     if (!projectId) return
-    return subscribeToCharacters(projectId, (items) => {
-      setCharacters(items)
-      setActiveCharacterId((current) => {
+    return subscribeToLocations(projectId, (items) => {
+      setLocations(items)
+      setActiveLocationId((current) => {
         if (current && items.some((item) => item.id === current)) return current
         return items[0]?.id ?? null
       })
@@ -95,75 +94,75 @@ export function CharactersPage() {
   }, [chapters, selectedChapterId])
 
   // carrega a última varredura salva no projeto, assim quem entra na
-  // página já vê os personagens encontrados sem precisar clicar em
+  // página já vê os lugares encontrados sem precisar clicar em
   // atualizar de novo
   useEffect(() => {
     setDetectedNames(persistedDetection?.names ?? [])
   }, [persistedDetection])
 
-  const filteredCharacters = useMemo(() => {
+  const filteredLocations = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase('pt-BR')
-    if (!normalizedSearch) return characters
-    return characters.filter((character) => {
-      const searchableNames = [character.name, ...(character.aliases ?? [])]
+    if (!normalizedSearch) return locations
+    return locations.filter((location) => {
+      const searchableNames = [location.name, ...(location.aliases ?? [])]
       return searchableNames.some((name) => name.toLocaleLowerCase('pt-BR').includes(normalizedSearch))
     })
-  }, [characters, search])
+  }, [locations, search])
 
   // nomes (e apelidos) já cadastrados, normalizados — usado pra nunca
-  // sugerir de novo um personagem que o autor já tem na lista
+  // sugerir de novo um lugar que o autor já tem na lista
   const addedNames = useMemo(
-    () => new Set(characters.flatMap((character) => [character.name, ...(character.aliases ?? [])]).map((name) => name.toLocaleLowerCase('pt-BR'))),
-    [characters],
+    () => new Set(locations.flatMap((location) => [location.name, ...(location.aliases ?? [])]).map((name) => name.toLocaleLowerCase('pt-BR'))),
+    [locations],
   )
   const pendingDetectedNames = detectedNames
     .filter((name) => !addedNames.has(name.toLocaleLowerCase('pt-BR')))
     .sort((a, b) => a.localeCompare(b, 'pt-BR'))
 
-  const activeCharacter = characters.find((character) => character.id === activeCharacterId) ?? null
+  const activeLocation = locations.find((location) => location.id === activeLocationId) ?? null
 
   useEffect(() => {
-    setAliasDraft(activeCharacter?.aliases?.join(', ') ?? '')
-  }, [activeCharacter?.id, activeCharacter?.aliases])
+    setAliasDraft(activeLocation?.aliases?.join(', ') ?? '')
+  }, [activeLocation?.id, activeLocation?.aliases])
 
-  const handleCreateCharacter = async () => {
-    if (!projectId || !newCharacterName.trim()) return
+  const handleCreateLocation = async () => {
+    if (!projectId || !newLocationName.trim()) return
     setCreating(true)
     try {
-      const characterId = await createCharacter(projectId, newCharacterName)
-      setActiveCharacterId(characterId)
-      setNewCharacterName('')
+      const locationId = await createLocation(projectId, newLocationName)
+      setActiveLocationId(locationId)
+      setNewLocationName('')
     } finally {
       setCreating(false)
     }
   }
 
-  const handleDeleteCharacter = async () => {
-    if (!projectId || !activeCharacter) return
-    const confirmed = window.confirm(`Excluir ${activeCharacter.name}?`)
+  const handleDeleteLocation = async () => {
+    if (!projectId || !activeLocation) return
+    const confirmed = window.confirm(`Excluir ${activeLocation.name}?`)
     if (!confirmed) return
-    await deleteCharacter(projectId, activeCharacter.id)
+    await deleteLocation(projectId, activeLocation.id)
   }
 
   const handleSaveAliases = async () => {
-    if (!projectId || !activeCharacter) return
+    if (!projectId || !activeLocation) return
     const aliases = Array.from(new Set(
       aliasDraft
         .split(/[,\n]/)
         .map((item) => item.trim())
-        .filter((item) => item && item.toLocaleLowerCase('pt-BR') !== activeCharacter.name.toLocaleLowerCase('pt-BR')),
+        .filter((item) => item && item.toLocaleLowerCase('pt-BR') !== activeLocation.name.toLocaleLowerCase('pt-BR')),
     ))
     setSavingAliases(true)
     try {
-      await updateCharacterAliases(projectId, activeCharacter.id, aliases)
+      await updateLocationAliases(projectId, activeLocation.id, aliases)
     } finally {
       setSavingAliases(false)
     }
   }
 
-  // pede pra IA varrer o manuscrito inteiro e apontar personagens que
+  // pede pra IA varrer o manuscrito inteiro e apontar lugares que
   // aparecem no texto mas ainda não foram cadastrados na lista
-  const handleDetectCharacters = async () => {
+  const handleDetectLocations = async () => {
     if (!projectId) return
 
     const chaptersWithContent = chapters
@@ -178,38 +177,38 @@ export function CharactersPage() {
     setDetecting(true)
     setDetectError('')
     try {
-      const existingNames = characters.flatMap((character) => [character.name, ...(character.aliases ?? [])])
-      const result = await aiProvider.detectBookCharacters({ chapters: chaptersWithContent, existingNames })
+      const existingNames = locations.flatMap((location) => [location.name, ...(location.aliases ?? [])])
+      const result = await aiProvider.detectBookLocations({ chapters: chaptersWithContent, existingNames })
       const normalizedExisting = new Set(existingNames.map((name) => name.toLocaleLowerCase('pt-BR')))
       const uniqueDetected = Array.from(new Set(
-        result.characters
+        result.locations
           .map((name) => name.trim())
           .filter((name) => name && !normalizedExisting.has(name.toLocaleLowerCase('pt-BR'))),
       ))
       setDetectedNames(uniqueDetected)
       setDetectedCollapsed(false)
-      updateCharacterDetectionAnalysis(projectId, { names: uniqueDetected, analyzedAt: Date.now() }).catch((error) =>
-        console.error('Falha ao salvar personagens detectados:', error),
+      updateLocationDetectionAnalysis(projectId, { names: uniqueDetected, analyzedAt: Date.now() }).catch((error) =>
+        console.error('Falha ao salvar lugares detectados:', error),
       )
     } catch (error) {
-      setDetectError(error instanceof Error ? error.message : 'Não foi possível buscar os personagens do livro.')
+      setDetectError(error instanceof Error ? error.message : 'Não foi possível buscar os lugares do livro.')
     } finally {
       setDetecting(false)
     }
   }
 
-  // adiciona um personagem detectado pela IA exatamente como se o
-  // autor tivesse digitado o nome dele no campo de criação
-  const handleAddDetectedCharacter = async (name: string) => {
+  // adiciona um lugar detectado pela IA exatamente como se o autor
+  // tivesse digitado o nome dele no campo de criação
+  const handleAddDetectedLocation = async (name: string) => {
     if (!projectId) return
     setAddingDetectedName(name)
     try {
-      const characterId = await createCharacter(projectId, name)
+      const locationId = await createLocation(projectId, name)
       const remainingNames = detectedNames.filter((item) => item !== name)
       setDetectedNames(remainingNames)
-      setActiveCharacterId(characterId)
-      updateCharacterDetectionAnalysis(projectId, { names: remainingNames, analyzedAt: Date.now() }).catch((error) =>
-        console.error('Falha ao salvar personagens detectados:', error),
+      setActiveLocationId(locationId)
+      updateLocationDetectionAnalysis(projectId, { names: remainingNames, analyzedAt: Date.now() }).catch((error) =>
+        console.error('Falha ao salvar lugares detectados:', error),
       )
     } finally {
       setAddingDetectedName(null)
@@ -223,11 +222,11 @@ export function CharactersPage() {
     setAnalysisOpen(true)
   }
 
-  // roda UMA análise que já preenche Detalhes + Conexões + Resumo por
-  // capítulo — mais barato que 3 chamadas separadas, porque o
-  // manuscrito só é reenviado uma vez (ver aiProvider.analyzeCharacterFull)
+  // roda UMA análise que já preenche Detalhes + Conexões + Eventos —
+  // mais barato que 3 chamadas separadas, porque o manuscrito só é
+  // reenviado uma vez (ver aiProvider.analyzeLocationFull)
   const handleAnalyze = async () => {
-    if (!projectId || !activeCharacter) return
+    if (!projectId || !activeLocation) return
 
     const selectedChapters = analysisScope === 'all'
       ? chapters
@@ -246,17 +245,17 @@ export function CharactersPage() {
     setAnalysisError('')
     try {
       const input = {
-        characterName: activeCharacter.name,
-        characterAliases: activeCharacter.aliases ?? [],
+        locationName: activeLocation.name,
+        locationAliases: activeLocation.aliases ?? [],
         chapters: chaptersWithContent,
         scope: analysisScope,
       }
-      const result = await aiProvider.analyzeCharacterFull(input)
+      const result = await aiProvider.analyzeLocationFull(input)
       const analyzedAt = Date.now()
-      await updateCharacterFullAnalysis(projectId, activeCharacter.id, {
+      await updateLocationFullAnalysis(projectId, activeLocation.id, {
         detailsAnalysis: { ...result.details, analyzedAt },
         connectionsAnalysis: { ...result.connections, analyzedAt },
-        chapterSummaryAnalysis: { ...result.chapterSummary, analyzedAt },
+        eventsAnalysis: { ...result.events, analyzedAt },
       })
       setAnalysisOpen(false)
     } catch (error) {
@@ -270,14 +269,14 @@ export function CharactersPage() {
     <div className={css.page}>
       <header className={css.pageHeader}>
         <div>
-          <p className={css.eyebrow}>Elenco do livro</p>
-          <h1>Personagens</h1>
-          <p>Organize informações extraídas do manuscrito e acompanhe a evolução de cada personagem.</p>
+          <p className={css.eyebrow}>Mundo do livro</p>
+          <h1>Lugares</h1>
+          <p>Organize informações extraídas do manuscrito sobre cada cenário e acompanhe como eles se conectam à história.</p>
         </div>
       </header>
 
-      <nav className={css.tabs} aria-label="Áreas dos personagens">
-        {(['Detalhes do personagem', 'Conexões', 'Resumo por capítulo'] as CharacterPageSection[]).map((section) => (
+      <nav className={css.tabs} aria-label="Áreas dos lugares">
+        {(['Detalhes do lugar', 'Conexões', 'Principais eventos'] as LocationPageSection[]).map((section) => (
           <button
             className={activeSection === section ? css.tabActive : css.tab}
             key={section}
@@ -293,16 +292,16 @@ export function CharactersPage() {
         <aside className={css.sidebar}>
           <div className={css.sidebarHeader}>
             <div>
-              <strong>Personagens</strong>
-              <span>{characters.length} cadastrado{characters.length === 1 ? '' : 's'}</span>
+              <strong>Lugares</strong>
+              <span>{locations.length} cadastrado{locations.length === 1 ? '' : 's'}</span>
             </div>
             <button
               type="button"
               className={detecting ? css.refreshButtonSpinning : css.refreshButton}
-              onClick={() => void handleDetectCharacters()}
+              onClick={() => void handleDetectLocations()}
               disabled={detecting || !chapters.length}
-              title="Buscar personagens no livro"
-              aria-label="Buscar personagens no livro"
+              title="Buscar lugares no livro"
+              aria-label="Buscar lugares no livro"
             >
               <RefreshCw size={15} />
             </button>
@@ -310,21 +309,21 @@ export function CharactersPage() {
 
           <label className={css.search}>
             <Search size={15} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar personagem" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar lugar" />
           </label>
 
-          <div className={css.characterList}>
-            {filteredCharacters.map((character) => (
+          <div className={css.locationList}>
+            {filteredLocations.map((location) => (
               <button
-                className={activeCharacterId === character.id ? css.characterActive : css.character}
-                key={character.id}
+                className={activeLocationId === location.id ? css.locationActive : css.location}
+                key={location.id}
                 type="button"
-                onClick={() => setActiveCharacterId(character.id)}
+                onClick={() => setActiveLocationId(location.id)}
               >
-                <span className={css.avatar}>{initials(character.name)}</span>
-                <span className={css.characterInfo}>
-                  <strong>{character.name}</strong>
-                  <small>{character.detailsAnalysis ? 'Análise disponível' : 'Aguardando análise'}</small>
+                <span className={css.avatar}>{initials(location.name)}</span>
+                <span className={css.locationInfo}>
+                  <strong>{location.name}</strong>
+                  <small>{location.detailsAnalysis ? 'Análise disponível' : 'Aguardando análise'}</small>
                 </span>
                 <ChevronRight size={15} />
               </button>
@@ -344,16 +343,16 @@ export function CharactersPage() {
                   <span>Encontrados no livro ({pendingDetectedNames.length})</span>
                 </button>
                 {!detectedCollapsed && pendingDetectedNames.map((name) => (
-                  <div className={css.characterPending} key={name}>
+                  <div className={css.locationPending} key={name}>
                     <span className={css.avatar}>{initials(name)}</span>
-                    <span className={css.characterInfo}>
+                    <span className={css.locationInfo}>
                       <strong>{name}</strong>
                       <small>Ainda não adicionado</small>
                     </span>
                     <button
                       type="button"
                       className={css.addDetectedButton}
-                      onClick={() => void handleAddDetectedCharacter(name)}
+                      onClick={() => void handleAddDetectedLocation(name)}
                       disabled={addingDetectedName === name}
                       title={`Adicionar ${name}`}
                       aria-label={`Adicionar ${name}`}
@@ -366,57 +365,123 @@ export function CharactersPage() {
             )}
           </div>
 
-          <div className={css.createCharacter}>
+          <div className={css.createLocation}>
             <input
-              value={newCharacterName}
-              onChange={(event) => setNewCharacterName(event.target.value)}
+              value={newLocationName}
+              onChange={(event) => setNewLocationName(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Enter') void handleCreateCharacter()
+                if (event.key === 'Enter') void handleCreateLocation()
               }}
-              placeholder="Nome do personagem"
+              placeholder="Nome do lugar"
             />
-            <button type="button" disabled={!newCharacterName.trim() || creating} onClick={() => void handleCreateCharacter()}>
+            <button type="button" disabled={!newLocationName.trim() || creating} onClick={() => void handleCreateLocation()}>
               <Plus size={16} />
             </button>
           </div>
         </aside>
 
         <main className={css.content}>
-          {activeSection === 'Conexões' && activeCharacter ? (
-            <section className="character-ai-section">
-              <header className="character-ai-section__header"><div><p className={css.eyebrow}>Mapa relacional</p><h2>Conexões de {activeCharacter.name}</h2><p>Família, amigos, inimigos, conhecidos e evolução das relações ao longo do livro.</p></div><button className={css.analyzeButton} onClick={openAnalysis}><Sparkles size={16}/>{activeCharacter.detailsAnalysis ? 'Atualizar análise com IA' : 'Gerar análise com IA'}</button></header>
-              {activeCharacter.connectionsAnalysis ? <><div className="connection-groups">{(['family','friend','enemy','acquaintance'] as const).map(type => { const items=activeCharacter.connectionsAnalysis?.connections.filter(item=>item.relationshipType===type)??[]; if(!items.length)return null; return <section className="connection-group" key={type}><h3>{type==='family'?'Árvore genealógica':type==='friend'?'Amigos':type==='enemy'?'Inimigos':'Conhecidos'} <span>{items.length}</span></h3><div className="connection-cards">{items.map((item,index)=><article key={`${item.characterName}-${index}`}><strong>{item.characterName}</strong><small>{item.relationshipLabel}</small>{item.firstMeetingChapterTitle&&<p><b>Primeiro encontro:</b> {item.firstMeetingChapterTitle}</p>}<p>{item.firstMeetingContext}</p>{item.currentContext&&<p className="connection-current">{item.currentContext}</p>}</article>)}</div></section> })}</div><section className="connection-timeline"><h3>Timeline de conexões</h3>{activeCharacter.connectionsAnalysis.timeline.map((event,index)=><article key={`${event.chapterId}-${index}`}><span></span><div><small>{event.chapterTitle}</small><strong>{event.connectedCharacters.join(' · ')}</strong><p>{event.summary}</p></div></article>)}</section></> : <div className={css.emptyAnalysis}><span><UsersRound size={30}/></span><h3>Mapeie as relações do personagem</h3><p>A IA identifica parentesco, amizades, rivalidades, conhecidos e quando cada conexão surgiu.</p><button onClick={openAnalysis}><Sparkles size={16}/> Gerar análise com IA</button></div>}
+          {activeSection === 'Conexões' && activeLocation ? (
+            <section className="location-ai-section">
+              <header className="location-ai-section__header">
+                <div>
+                  <p className={css.eyebrow}>Mapa relacional</p>
+                  <h2>Conexões de {activeLocation.name}</h2>
+                  <p>Outros lugares relacionados e personagens fortemente associados a este cenário.</p>
+                </div>
+                <button className={css.analyzeButton} onClick={openAnalysis}>
+                  <Sparkles size={16} />{activeLocation.detailsAnalysis ? 'Atualizar análise com IA' : 'Gerar análise com IA'}
+                </button>
+              </header>
+              {activeLocation.connectionsAnalysis?.connections.length ? (
+                <div className="location-connection-groups">
+                  {(['place', 'character'] as const).map((type) => {
+                    const items = activeLocation.connectionsAnalysis?.connections.filter((item) => item.connectionType === type) ?? []
+                    if (!items.length) return null
+                    return (
+                      <section className="location-connection-group" key={type}>
+                        <h3>{type === 'place' ? 'Outros lugares' : 'Personagens associados'} <span>{items.length}</span></h3>
+                        <div className="location-connection-cards">
+                          {items.map((item, index) => (
+                            <article key={`${item.name}-${index}`}>
+                              <strong>{item.name}</strong>
+                              <small>{item.relationshipLabel}</small>
+                              <p>{item.context}</p>
+                            </article>
+                          ))}
+                        </div>
+                      </section>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className={css.emptyAnalysis}>
+                  <span><MapPinned size={30} /></span>
+                  <h3>Mapeie as conexões do lugar</h3>
+                  <p>A IA identifica outros lugares relacionados e personagens fortemente associados a este cenário.</p>
+                  <button onClick={openAnalysis}><Sparkles size={16} /> Gerar análise com IA</button>
+                </div>
+              )}
             </section>
-          ) : activeSection === 'Resumo por capítulo' && activeCharacter ? (
-            <section className="character-ai-section">
-              <header className="character-ai-section__header"><div><p className={css.eyebrow}>Presença narrativa</p><h2>Resumo por capítulo</h2><p>Acompanhe somente os capítulos em que {activeCharacter.name} realmente aparece.</p></div><button className={css.analyzeButton} onClick={openAnalysis}><Sparkles size={16}/>{activeCharacter.detailsAnalysis ? 'Atualizar análise com IA' : 'Gerar análise com IA'}</button></header>
-              {activeCharacter.chapterSummaryAnalysis?.chapters.length ? <div className="chapter-summary-list">{activeCharacter.chapterSummaryAnalysis.chapters.map((item,index)=><article key={`${item.chapterId}-${index}`}><div className="chapter-summary-index">{String(index+1).padStart(2,'0')}</div><div><small>{item.chapterTitle}</small><p>{item.summary}</p>{item.keyActions.length>0&&<div className="chapter-summary-actions">{item.keyActions.map(action=><span key={action}>{action}</span>)}</div>}{item.characterState&&<blockquote>{item.characterState}</blockquote>}</div></article>)}</div> : <div className={css.emptyAnalysis}><span><FileSearch size={30}/></span><h3>Crie a trajetória capítulo a capítulo</h3><p>A IA resume a participação do personagem apenas onde ele aparece, incluindo ações e estado narrativo.</p><button onClick={openAnalysis}><Sparkles size={16}/> Gerar análise com IA</button></div>}
+          ) : activeSection === 'Principais eventos' && activeLocation ? (
+            <section className="location-ai-section">
+              <header className="location-ai-section__header">
+                <div>
+                  <p className={css.eyebrow}>Presença narrativa</p>
+                  <h2>Principais eventos</h2>
+                  <p>Acompanhe os acontecimentos mais importantes que se passam em {activeLocation.name}.</p>
+                </div>
+                <button className={css.analyzeButton} onClick={openAnalysis}>
+                  <Sparkles size={16} />{activeLocation.detailsAnalysis ? 'Atualizar análise com IA' : 'Gerar análise com IA'}
+                </button>
+              </header>
+              {activeLocation.eventsAnalysis?.events.length ? (
+                <div className="location-event-list">
+                  {activeLocation.eventsAnalysis.events.map((item, index) => (
+                    <article key={`${item.chapterId}-${index}`}>
+                      <div className="location-event-index">{String(index + 1).padStart(2, '0')}</div>
+                      <div>
+                        <small>{item.chapterTitle}</small>
+                        <h3>{item.title}</h3>
+                        <p>{item.summary}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className={css.emptyAnalysis}>
+                  <span><FileSearch size={30} /></span>
+                  <h3>Reconstrua os eventos deste lugar</h3>
+                  <p>A IA resume os principais acontecimentos que acontecem em {activeLocation.name} ao longo do livro.</p>
+                  <button onClick={openAnalysis}><Sparkles size={16} /> Gerar análise com IA</button>
+                </div>
+              )}
             </section>
-          ) : activeSection !== 'Detalhes do personagem' ? (
-            <div className={css.comingSoon}><strong>Selecione um personagem</strong></div>
-          ) : activeCharacter ? (
+          ) : activeSection !== 'Detalhes do lugar' ? (
+            <div className={css.comingSoon}><strong>Selecione um lugar</strong></div>
+          ) : activeLocation ? (
             <>
-              <header className={css.characterHeader}>
-                <div className={css.characterIdentity}>
-                  <span className={css.largeAvatar}>{initials(activeCharacter.name)}</span>
+              <header className={css.locationHeader}>
+                <div className={css.locationIdentity}>
+                  <span className={css.largeAvatar}>{initials(activeLocation.name)}</span>
                   <div>
-                    <p className={css.eyebrow}>Dossiê do personagem</p>
-                    <h2>{activeCharacter.name}</h2>
+                    <p className={css.eyebrow}>Dossiê do lugar</p>
+                    <h2>{activeLocation.name}</h2>
                     <span className={css.analysisStatus}>
                       <Clock3 size={13} />
-                      {activeCharacter.detailsAnalysis
-                        ? `Analisado em ${new Date(activeCharacter.detailsAnalysis.analyzedAt).toLocaleDateString('pt-BR')}`
+                      {activeLocation.detailsAnalysis
+                        ? `Analisado em ${new Date(activeLocation.detailsAnalysis.analyzedAt).toLocaleDateString('pt-BR')}`
                         : 'Nenhuma análise realizada'}
                     </span>
                   </div>
                 </div>
                 <div className={css.headerActions}>
-                  <button className={css.deleteButton} type="button" onClick={() => void handleDeleteCharacter()} title="Excluir personagem">
+                  <button className={css.deleteButton} type="button" onClick={() => void handleDeleteLocation()} title="Excluir lugar">
                     <Trash2 size={16} />
                   </button>
                   <button className={css.analyzeButton} type="button" onClick={openAnalysis} disabled={!chapters.length}>
                     <Sparkles size={16} />
-                    {activeCharacter.detailsAnalysis ? 'Atualizar análise com IA' : 'Gerar análise com IA'}
+                    {activeLocation.detailsAnalysis ? 'Atualizar análise com IA' : 'Gerar análise com IA'}
                   </button>
                 </div>
               </header>
@@ -425,8 +490,8 @@ export function CharactersPage() {
                 <div className={css.aliasIntro}>
                   <span><Tag size={17} /></span>
                   <div>
-                    <strong>Nomes alternativos e fases</strong>
-                    <p>Informe apelidos, títulos, nomes antigos ou identidades usadas pelo mesmo personagem. Separe por vírgula.</p>
+                    <strong>Nomes alternativos</strong>
+                    <p>Informe apelidos ou outras formas como este lugar é chamado no livro. Separe por vírgula.</p>
                   </div>
                 </div>
                 <div className={css.aliasEditor}>
@@ -436,26 +501,26 @@ export function CharactersPage() {
                     onKeyDown={(event) => {
                       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void handleSaveAliases()
                     }}
-                    placeholder={`Ex.: ${activeCharacter.name} criança, apelido, título, identidade secreta`}
+                    placeholder={`Ex.: ${activeLocation.name} antigo, apelido, outro nome`}
                   />
                   <button type="button" disabled={savingAliases} onClick={() => void handleSaveAliases()}>
                     {savingAliases ? 'Salvando...' : 'Salvar nomes'}
                   </button>
                 </div>
-                {(activeCharacter.aliases?.length ?? 0) > 0 && (
+                {(activeLocation.aliases?.length ?? 0) > 0 && (
                   <div className={css.aliasTags}>
-                    {activeCharacter.aliases?.map((alias) => <span key={alias}>{alias}</span>)}
+                    {activeLocation.aliases?.map((alias) => <span key={alias}>{alias}</span>)}
                   </div>
                 )}
               </section>
 
-              {activeCharacter.detailsAnalysis ? (
+              {activeLocation.detailsAnalysis ? (
                 <div className={css.detailGrid}>
                   {detailCards.map((card) => (
-                    <article className={card.key === 'mainPlot' || card.key === 'motivation' ? css.detailCardWide : css.detailCard} key={card.key}>
+                    <article className={card.key === 'significance' || card.key === 'history' ? css.detailCardWide : css.detailCard} key={card.key}>
                       <p>{card.eyebrow}</p>
                       <h3>{card.label}</h3>
-                      <div>{activeCharacter.detailsAnalysis?.[card.key]}</div>
+                      <div>{activeLocation.detailsAnalysis?.[card.key]}</div>
                     </article>
                   ))}
                 </div>
@@ -463,7 +528,7 @@ export function CharactersPage() {
                 <div className={css.emptyAnalysis}>
                   <span><Bot size={30} /></span>
                   <h3>Transforme o manuscrito em um dossiê</h3>
-                  <p>A IA pode localizar descrições, comportamentos, idade, papel no enredo, motivações, conexões e resumo por capítulo de {activeCharacter.name} — tudo em uma única análise.</p>
+                  <p>A IA pode localizar descrições, atmosfera, importância na trama, histórico, conexões e principais eventos de {activeLocation.name} — tudo em uma única análise.</p>
                   <button type="button" onClick={openAnalysis} disabled={!chapters.length}>
                     <Sparkles size={16} /> Gerar análise com IA
                   </button>
@@ -471,23 +536,23 @@ export function CharactersPage() {
               )}
             </>
           ) : (
-            <div className={css.emptyCharacter}>
-              <UserRound size={30} />
-              <h3>Crie seu primeiro personagem</h3>
+            <div className={css.emptyLocation}>
+              <MapPin size={30} />
+              <h3>Crie seu primeiro lugar</h3>
               <p>Cadastre somente o nome. A IA preencherá os detalhes a partir dos capítulos.</p>
             </div>
           )}
         </main>
       </div>
 
-      {analysisOpen && activeCharacter && (
+      {analysisOpen && activeLocation && (
         <div className={css.overlay} onMouseDown={() => !analyzing && setAnalysisOpen(false)}>
           <section className={css.modal} role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <header className={css.modalHeader}>
               <div>
                 <p className={css.eyebrow}>Análise literária com IA</p>
-                <h2>Analisar {activeCharacter.name}</h2>
-                <p>Escolha quanto do manuscrito deve ser usado e confira os nomes associados ao personagem.</p>
+                <h2>Analisar {activeLocation.name}</h2>
+                <p>Escolha quanto do manuscrito deve ser usado e confira os nomes associados ao lugar.</p>
               </div>
               <button type="button" disabled={analyzing} onClick={() => setAnalysisOpen(false)}><X size={18} /></button>
             </header>
@@ -517,12 +582,12 @@ export function CharactersPage() {
 
               <div className={css.analysisIncludes}>
                 <strong>Identidade considerada pela IA</strong>
-                <span>{[activeCharacter.name, ...(activeCharacter.aliases ?? [])].join(' · ')}</span>
+                <span>{[activeLocation.name, ...(activeLocation.aliases ?? [])].join(' · ')}</span>
               </div>
 
               <div className={css.analysisIncludes}>
                 <strong>Uma única análise preencherá</strong>
-                <span>Características físicas · Personalidade · Idade e fases · Enredo principal · Motivação · Conexões · Resumo por capítulo</span>
+                <span>Descrição física · Atmosfera · Importância na trama · História do lugar · Conexões com outros lugares e personagens · Principais eventos</span>
               </div>
 
               {analysisError && <p className={css.error}>{analysisError}</p>}

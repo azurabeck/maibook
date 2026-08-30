@@ -13,13 +13,21 @@ injectStyleSheet('chapter-list-panel-organism-css', `
   margin-bottom: 4px;
 }
 
+.chapter-list__project-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .chapter-list__project-name {
-  background: none;
-  border: none;
+  flex: 1;
   font-weight: 600;
   font-size: 14px;
   color: var(--text-primary);
-  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chapter-list__section-label {
@@ -204,8 +212,8 @@ export const chapterListPanelCss = {
   chapterList: 'chapter-list',
   chapterListProject: 'chapter-list__project',
   chapterListProjectLabel: 'chapter-list__project-label',
+  chapterListProjectRow: 'chapter-list__project-row',
   chapterListProjectName: 'chapter-list__project-name',
-  chevron: 'chevron',
   chapterListSectionLabel: 'chapter-list__section-label',
   chapterListItems: 'chapter-list__items',
   chapterListRow: 'chapter-list__row',

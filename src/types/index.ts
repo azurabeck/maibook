@@ -32,6 +32,21 @@ export interface StoryTimelineAnalysis {
   analyzedAt: number
 }
 
+// Resultado salvo da última varredura de "personagens encontrados no
+// livro pela IA mas ainda não cadastrados" — persistido pra não
+// precisar rodar a IA de novo toda vez que a página é aberta.
+export interface CharacterDetectionAnalysis {
+  names: string[]
+  analyzedAt: number
+}
+
+// Mesma ideia, mas pra lugares encontrados no manuscrito que ainda
+// não foram cadastrados na aba Lugares.
+export interface LocationDetectionAnalysis {
+  names: string[]
+  analyzedAt: number
+}
+
 export interface BookProject {
   id: string
   ownerId: string // uid do usuário dono do projeto (vem do Firebase Auth)
@@ -42,6 +57,8 @@ export interface BookProject {
   footerText?: string // texto de rodapé padrão do livro
   chapterOrderAnalysis?: ChapterOrderAnalysis
   storyTimelineAnalysis?: StoryTimelineAnalysis
+  characterDetectionAnalysis?: CharacterDetectionAnalysis
+  locationDetectionAnalysis?: LocationDetectionAnalysis
 }
 
 export interface ChapterHeader extends HeaderStructureDraft {
@@ -78,6 +95,11 @@ export interface BookLocation {
   aliases?: string[]
   description?: string
   imageUrl?: string
+  detailsAnalysis?: LocationDetailsAnalysis
+  connectionsAnalysis?: LocationConnectionsAnalysis
+  eventsAnalysis?: LocationEventsAnalysis
+  createdAt?: number
+  updatedAt?: number
 }
 
 export interface TimelineEvent {
@@ -244,6 +266,72 @@ export interface CharacterChapterSummaryItem {
 
 export interface CharacterChapterSummaryAnalysis {
   chapters: CharacterChapterSummaryItem[]
+  analyzedChapterIds: string[]
+  analysisScope: 'all' | 'chapter'
+  analyzedAt: number
+}
+
+// "Notas da história" e "Notas para personagem" da aba Ideias.
+// A diferença entre os dois tipos é só o campo extra que cada um
+// carrega: personagem atribuído (character) ou momento do livro (story).
+export type IdeaKind = 'story' | 'character'
+export type IdeaMoment = 'start' | 'middle' | 'end' | 'future'
+
+// Uma pergunta feita à IA sobre a ideia e a resposta recebida — fica
+// registrada na própria ideia pra poder ser consultada depois.
+export interface IdeaDiscussionMessage {
+  question: string
+  answer: string
+  createdAt: number
+}
+
+export interface Idea {
+  id: string
+  projectId: string
+  kind: IdeaKind
+  content: string
+  characterName?: string // preenchido quando kind === 'character'
+  moment?: IdeaMoment // preenchido quando kind === 'story'
+  discussion?: IdeaDiscussionMessage[] // histórico de conversas com a IA sobre esta ideia
+  createdAt: number
+  updatedAt: number
+}
+
+export interface LocationDetailsAnalysis {
+  physicalDescription: string
+  atmosphere: string
+  significance: string
+  history: string
+  analyzedChapterIds: string[]
+  analysisScope: 'all' | 'chapter'
+  analyzedAt: number
+}
+
+export type LocationConnectionType = 'place' | 'character'
+
+export interface LocationConnection {
+  name: string
+  connectionType: LocationConnectionType
+  relationshipLabel: string
+  context: string
+}
+
+export interface LocationConnectionsAnalysis {
+  connections: LocationConnection[]
+  analyzedChapterIds: string[]
+  analysisScope: 'all' | 'chapter'
+  analyzedAt: number
+}
+
+export interface LocationEventItem {
+  chapterId: string
+  chapterTitle: string
+  title: string
+  summary: string
+}
+
+export interface LocationEventsAnalysis {
+  events: LocationEventItem[]
   analyzedChapterIds: string[]
   analysisScope: 'all' | 'chapter'
   analyzedAt: number

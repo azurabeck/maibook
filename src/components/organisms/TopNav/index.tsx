@@ -1,4 +1,4 @@
-import { NavLink, useParams } from 'react-router-dom'
+import { Link, NavLink, useParams } from 'react-router-dom'
 import { Sun, Moon, ChevronDown } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { topNavCss } from './css'
@@ -10,6 +10,7 @@ const TABS = [
   { path: 'capitulos', label: 'Capítulos' },
   { path: 'estruturas', label: 'Estruturas' },
   { path: 'personagens', label: 'Personagens' },
+  { path: 'lugares', label: 'Lugares' },
   { path: 'timeline', label: 'Timeline' },
   { path: 'ideias', label: 'Ideias' },
 ]
@@ -21,8 +22,8 @@ export function TopNav() {
 
   return (
     <header className={topNavCss.topNav}>
-      {/* #region Logo */}
-      <div className={topNavCss.topNavLogo}>MAIBOOK</div>
+      {/* #region Logo: leva de volta pro Dashboard (mesma tela de depois do login) */}
+      <Link to="/dashboard" className={topNavCss.topNavLogo}>MAIBOOK</Link>
       {/* #endregion */}
 
       {/* #region Abas de navegação do projeto */}

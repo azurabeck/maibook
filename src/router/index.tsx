@@ -6,6 +6,7 @@ import { ProjectLayout } from '@/components/templates/ProjectLayout/index'
 import { ChaptersPage } from '@/pages/project/ChaptersPage/index'
 import { StructurePage } from '@/pages/project/StructurePage/index'
 import { CharactersPage } from '@/pages/project/CharactersPage/index'
+import { LocationsPage } from '@/pages/project/LocationsPage/index'
 import { TimelinePage } from '@/pages/project/TimelinePage/index'
 import { IdeasPage } from '@/pages/project/IdeasPage/index'
 
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: 'capitulos', element: <ChaptersPage /> },
       { path: 'estruturas', element: <StructurePage /> },
       { path: 'personagens', element: <CharactersPage /> },
+      { path: 'lugares', element: <LocationsPage /> },
       { path: 'timeline', element: <TimelinePage /> },
       { path: 'ideias', element: <IdeasPage /> },
     ],

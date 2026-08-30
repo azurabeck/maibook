@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { BookProject, Chapter, ChapterFooter, ChapterGrid, ChapterHeader } from '@/types'
-import { subscribeToProject } from '@/services/firestore/projects'
+import { renameProject as renameProjectInFirestore, subscribeToProject } from '@/services/firestore/projects'
 import {
   createChapter,
   deleteChapterInFirestore,
@@ -48,6 +48,7 @@ interface ProjectState {
   // desconecta os listeners do Firestore (chamado ao sair do projeto)
   unloadProject: () => void
 
+  renameProject: (newTitle: string) => void
   setActiveChapter: (chapterId: string | null) => void
   updateChapterContent: (chapterId: string, content: string) => void
   updateChapterNotes: (chapterId: string, notes: string) => Promise<void>
@@ -120,6 +121,20 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     headerSaveTimers.clear()
   },
   // #endregion
+
+  // troca o título do projeto na tela na hora (otimista) e grava no Firestore
+  renameProject: (newTitle) => {
+    const projectId = get().currentProject?.id
+    if (!projectId) return
+
+    set((state) => ({
+      currentProject: state.currentProject ? { ...state.currentProject, title: newTitle } : state.currentProject,
+    }))
+
+    renameProjectInFirestore(projectId, newTitle).catch((error) =>
+      console.error('Falha ao renomear projeto:', error),
+    )
+  },
 
   // marca qual capítulo está sendo editado agora
   setActiveChapter: (chapterId) => set({ activeChapterId: chapterId }),

@@ -14,7 +14,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { BookProject, ChapterOrderAnalysis, StoryTimelineAnalysis } from '@/types'
+import type { BookProject, ChapterOrderAnalysis, CharacterDetectionAnalysis, LocationDetectionAnalysis, StoryTimelineAnalysis } from '@/types'
 
 const PROJECTS_COLLECTION = 'projects'
 
@@ -86,4 +86,23 @@ export async function updateChapterOrderAnalysis(projectId: string, chapterOrder
 
 export async function updateStoryTimelineAnalysis(projectId: string, storyTimelineAnalysis: StoryTimelineAnalysis) {
   await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), { storyTimelineAnalysis, updatedAt: Date.now() })
+}
+
+// Guarda a última lista de personagens que a IA encontrou no
+// manuscrito mas o autor ainda não adicionou — assim o resultado
+// sobrevive a um F5/navegação e não precisa rodar a IA de novo.
+export async function updateCharacterDetectionAnalysis(
+  projectId: string,
+  characterDetectionAnalysis: CharacterDetectionAnalysis,
+) {
+  await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), { characterDetectionAnalysis, updatedAt: Date.now() })
+}
+
+// Mesma ideia, mas pra lugares encontrados no manuscrito que ainda
+// não foram cadastrados na aba Lugares.
+export async function updateLocationDetectionAnalysis(
+  projectId: string,
+  locationDetectionAnalysis: LocationDetectionAnalysis,
+) {
+  await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), { locationDetectionAnalysis, updatedAt: Date.now() })
 }

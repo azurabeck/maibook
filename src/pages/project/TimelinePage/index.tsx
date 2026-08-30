@@ -102,46 +102,56 @@ export function TimelinePage() {
             </button>
           </header>
 
-          <div className={css.chapterTimeline}>
-            {orderedChapters.map((chapter, index) => (
-              <article className={css.chapterItem} key={chapter.id}>
-                <div className={css.orderBadge}>{String(index + 1).padStart(2, '0')}</div>
-                <div className={css.chapterCard}>
-                  <small>Ordem atual {chapter.order}</small>
-                  <h3>{chapter.title}</h3>
-                  <p>{htmlToText(chapter.content).slice(0, 180) || 'Capítulo ainda sem conteúdo.'}{htmlToText(chapter.content).length > 180 ? '…' : ''}</p>
-                </div>
-                {index < orderedChapters.length - 1 && <ArrowRight className={css.arrow} size={15} />}
-              </article>
-            ))}
-          </div>
-
-          {project?.chapterOrderAnalysis && (
-            <section className={css.analysisResult}>
-              <header>
-                <div>
-                  <p className={css.eyebrow}>Sugestão editorial</p>
-                  <h3>Ordem recomendada pela IA</h3>
-                </div>
-                <span><Clock3 size={13} /> {new Date(project.chapterOrderAnalysis.analyzedAt).toLocaleDateString('pt-BR')}</span>
-              </header>
-              <p className={css.overview}>{project.chapterOrderAnalysis.summary}</p>
-              <div className={css.suggestionList}>
-                {[...project.chapterOrderAnalysis.suggestions]
-                  .sort((a, b) => a.suggestedOrder - b.suggestedOrder)
-                  .map((item) => (
-                    <article key={item.chapterId}>
-                      <div className={css.suggestedOrder}>{String(item.suggestedOrder).padStart(2, '0')}</div>
-                      <div>
-                        <strong>{item.chapterTitle}</strong>
-                        <small>Posição atual: {item.currentOrder}</small>
-                        <p>{item.reason}</p>
-                      </div>
-                    </article>
-                  ))}
+          <div className={project?.chapterOrderAnalysis ? css.compareGrid : undefined}>
+            <div className={project?.chapterOrderAnalysis ? css.compareColumn : undefined}>
+              {project?.chapterOrderAnalysis && (
+                <header className={css.compareColumnHeader}>
+                  <p className={css.eyebrow}>Ordem atual</p>
+                  <h3>Sequência configurada hoje</h3>
+                </header>
+              )}
+              <div className={css.chapterTimeline}>
+                {orderedChapters.map((chapter, index) => (
+                  <article className={css.chapterItem} key={chapter.id}>
+                    <div className={css.orderBadge}>{String(index + 1).padStart(2, '0')}</div>
+                    <div className={css.chapterCard}>
+                      <small>Ordem atual {chapter.order}</small>
+                      <h3>{chapter.title}</h3>
+                      <p>{htmlToText(chapter.content).slice(0, 180) || 'Capítulo ainda sem conteúdo.'}{htmlToText(chapter.content).length > 180 ? '…' : ''}</p>
+                    </div>
+                    {index < orderedChapters.length - 1 && <ArrowRight className={css.arrow} size={15} />}
+                  </article>
+                ))}
               </div>
-            </section>
-          )}
+            </div>
+
+            {project?.chapterOrderAnalysis && (
+              <section className={css.analysisResult}>
+                <header>
+                  <div>
+                    <p className={css.eyebrow}>Sugestão editorial</p>
+                    <h3>Ordem recomendada pela IA</h3>
+                  </div>
+                  <span><Clock3 size={13} /> {new Date(project.chapterOrderAnalysis.analyzedAt).toLocaleDateString('pt-BR')}</span>
+                </header>
+                <p className={css.overview}>{project.chapterOrderAnalysis.summary}</p>
+                <div className={css.suggestionList}>
+                  {[...project.chapterOrderAnalysis.suggestions]
+                    .sort((a, b) => a.suggestedOrder - b.suggestedOrder)
+                    .map((item) => (
+                      <article key={item.chapterId}>
+                        <div className={css.suggestedOrder}>{String(item.suggestedOrder).padStart(2, '0')}</div>
+                        <div>
+                          <strong>{item.chapterTitle}</strong>
+                          <small>Posição atual: {item.currentOrder}</small>
+                          <p>{item.reason}</p>
+                        </div>
+                      </article>
+                    ))}
+                </div>
+              </section>
+            )}
+          </div>
         </section>
       ) : (
         <section className={css.panel}>

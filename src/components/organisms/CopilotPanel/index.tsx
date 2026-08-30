@@ -1,10 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Bot, ChevronRight, ImageIcon, Lightbulb, Save, Send, UserRound } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Bot, Save, Send, User } from 'lucide-react'
 import { aiProvider } from '@/services/ai'
 import { subscribeToCharacters } from '@/services/firestore/characters'
 import { useProjectStore } from '@/store/useProjectStore'
 import type { Character } from '@/types'
 import { copilotPanelCss as css } from './css'
+
+// quantas trocas anteriores mandamos de volta pra IA como contexto —
+// o suficiente pra manter a continuidade sem inflar o prompt à toa
+const MAX_HISTORY_TURNS = 6
+
+interface CopilotMessage {
+  question: string
+  answer: string
+  createdAt: number
+}
 
 function htmlToText(value: string) {
   const element = document.createElement('div')
@@ -15,11 +25,13 @@ function htmlToText(value: string) {
 export function CopilotPanel() {
   const [tab, setTab] = useState<'copiloto' | 'notas'>('copiloto')
   const [question, setQuestion] = useState('')
-  const [answer, setAnswer] = useState('')
+  const [messages, setMessages] = useState<CopilotMessage[]>([])
   const [loading, setLoading] = useState(false)
+  const [askError, setAskError] = useState('')
   const [characters, setCharacters] = useState<Character[]>([])
   const [notesDraft, setNotesDraft] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+  const conversationRef = useRef<HTMLDivElement>(null)
 
   const currentProject = useProjectStore((state) => state.currentProject)
   const chapters = useProjectStore((state) => state.chapters)
@@ -37,38 +49,21 @@ export function CopilotPanel() {
     setNotesDraft(activeChapter?.notes ?? '')
   }, [activeChapter?.id, activeChapter?.notes])
 
-  const insights = useMemo(() => {
-    const items: Array<{ icon: typeof AlertTriangle; tone: 'warn' | 'info' | 'danger'; text: string }> = []
-    const emptyChapters = chapters.filter((chapter) => !htmlToText(chapter.content))
-    const withoutDetails = characters.filter((character) => !character.detailsAnalysis)
-    const withoutImage = characters.filter((character) => !character.imageUrl)
-    const withoutAliases = characters.filter((character) => !(character.aliases?.length))
-
-    if (emptyChapters.length) {
-      items.push({ icon: AlertTriangle, tone: 'warn', text: `${emptyChapters.length} capítulo${emptyChapters.length === 1 ? '' : 's'} ainda sem conteúdo.` })
-    }
-    if (withoutDetails.length) {
-      items.push({ icon: UserRound, tone: 'info', text: `${withoutDetails.length} personagem${withoutDetails.length === 1 ? '' : 's'} aguardando análise da IA.` })
-    }
-    if (withoutImage.length) {
-      items.push({ icon: ImageIcon, tone: 'info', text: `${withoutImage.length} personagem${withoutImage.length === 1 ? '' : 's'} sem imagem.` })
-    }
-    if (characters.length && withoutAliases.length === characters.length) {
-      items.push({ icon: Lightbulb, tone: 'info', text: 'Nenhum personagem possui nomes alternativos cadastrados.' })
-    }
-    if (!items.length) {
-      items.push({ icon: Lightbulb, tone: 'info', text: 'Tudo organizado por enquanto. Continue escrevendo!' })
-    }
-    return items.slice(0, 4)
-  }, [chapters, characters])
+  // rola a conversa pro final sempre que uma mensagem nova chega ou
+  // quando o indicador de "carregando" aparece
+  useEffect(() => {
+    if (!conversationRef.current) return
+    conversationRef.current.scrollTop = conversationRef.current.scrollHeight
+  }, [messages.length, loading])
 
   async function handleAsk() {
     if (!question.trim() || !currentProject) return
+    const asked = question.trim()
     setLoading(true)
-    setAnswer('')
+    setAskError('')
     try {
       const response = await aiProvider.answerBookQuestion({
-        question: question.trim(),
+        question: asked,
         bookTitle: currentProject.title,
         activeChapter: activeChapter
           ? { title: activeChapter.title, content: htmlToText(activeChapter.content) }
@@ -90,11 +85,14 @@ export function CopilotPanel() {
               ].join(' ')
             : undefined,
         })),
+        // manda as últimas trocas pra IA continuar a conversa em vez
+        // de responder cada pergunta isolada
+        history: messages.slice(-MAX_HISTORY_TURNS).map((message) => ({ question: message.question, answer: message.answer })),
       })
-      setAnswer(response)
+      setMessages((current) => [...current, { question: asked, answer: response, createdAt: Date.now() }])
       setQuestion('')
     } catch (error) {
-      setAnswer(error instanceof Error ? error.message : 'Não consegui falar com a IA agora.')
+      setAskError(error instanceof Error ? error.message : 'Não consegui falar com a IA agora.')
     } finally {
       setLoading(false)
     }
@@ -119,23 +117,32 @@ export function CopilotPanel() {
 
       {tab === 'copiloto' ? (
         <>
-          <div className={css.copilotPanelIntro}>
-            <span className={css.copilotPanelAvatar}><Bot size={19} /></span>
-            <p>Olá! Posso responder perguntas sobre o capítulo atual, o manuscrito e os personagens analisados.</p>
-          </div>
+          <div className={css.copilotConversation} ref={conversationRef}>
+            {messages.length === 0 && (
+              <div className={css.copilotPanelIntro}>
+                <span className={css.copilotPanelAvatar}><Bot size={19} /></span>
+                <p>Olá! Posso responder perguntas sobre o capítulo atual, o manuscrito e os personagens analisados.</p>
+              </div>
+            )}
 
-          <div className={css.copilotPanelInsightsLabel}>Insights do seu livro</div>
-          <ul className={css.copilotPanelInsights}>
-            {insights.map((insight, index) => (
-              <li key={`${insight.text}-${index}`} className={css.insightByTone[insight.tone]}>
-                <insight.icon size={15} />
-                <span>{insight.text}</span>
-                <ChevronRight size={14} className={css.insightArrow} />
-              </li>
+            {messages.map((message, index) => (
+              <div className={css.exchange} key={`${message.createdAt}-${index}`}>
+                <div className={css.bubbleUser}><User size={12} /> {message.question}</div>
+                <div className={css.bubbleAi}>
+                  <strong><Bot size={12} /> IA</strong>
+                  <p>{message.answer}</p>
+                </div>
+              </div>
             ))}
-          </ul>
 
-          {answer && <div className={css.copilotPanelAnswer}>{answer}</div>}
+            {loading && (
+              <div className={css.loadingBubble}>
+                <span className={css.spinner} /> Consultando o livro...
+              </div>
+            )}
+
+            {askError && <p className={css.askError}>{askError}</p>}
+          </div>
 
           <div className={css.copilotPanelAsk}>
             <input
@@ -148,7 +155,7 @@ export function CopilotPanel() {
               }}
             />
             <button onClick={() => void handleAsk()} disabled={loading || !question.trim()} aria-label="Enviar pergunta">
-              <Send size={16} />
+              {loading ? <span className={css.spinnerOnSolid} /> : <Send size={16} />}
             </button>
           </div>
         </>

@@ -29,6 +29,22 @@ injectStyleSheet('characters-page-css', `
 .characters-page__character-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .characters-page__character-info strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .characters-page__character-info small { color: var(--text-muted); font-size: 9px; }
+.characters-page__refresh { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-panel); color: var(--text-secondary); }
+.characters-page__refresh:hover { border-color: var(--accent-purple); color: var(--accent-purple); }
+.characters-page__refresh:disabled { opacity: .5; }
+.characters-page__refresh--spinning svg { animation: characters-page-spin .9s linear infinite; }
+@keyframes characters-page-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.characters-page__divider { width: 100%; display: flex; align-items: center; gap: 6px; margin: 10px 0 2px; padding: 4px 0; border: 0; background: transparent; color: var(--text-muted); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; text-align: left; }
+.characters-page__divider:hover { color: var(--accent-purple); }
+.characters-page__divider svg { flex: 0 0 auto; transition: transform .15s ease; }
+.characters-page__divider-chevron-open { transform: rotate(90deg); }
+.characters-page__divider span { flex: 0 0 auto; }
+.characters-page__divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.characters-page__character-pending { width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px; border: 1px dashed var(--border); border-radius: 10px; background: transparent; }
+.characters-page__add-detected { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--accent-purple); border-radius: 9px; background: var(--accent-purple-soft); color: var(--accent-purple); }
+.characters-page__add-detected:hover { background: var(--accent-purple); color: white; }
+.characters-page__add-detected:disabled { opacity: .5; }
+.characters-page__detect-error { margin: 8px 0 0; color: var(--danger); font-size: 10px; line-height: 1.4; }
 .characters-page__create { display: grid; grid-template-columns: minmax(0, 1fr) 36px; gap: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
 .characters-page__create input { min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; outline: 0; background: var(--bg-panel); color: var(--text-primary); font: inherit; font-size: 11px; }
 .characters-page__create input:focus { border-color: var(--accent-purple); }
@@ -109,6 +125,8 @@ export const charactersPageCss = {
   sidebar: 'characters-page__sidebar', sidebarHeader: 'characters-page__sidebar-header', search: 'characters-page__search', characterList: 'characters-page__character-list',
   character: 'characters-page__character', characterActive: 'characters-page__character characters-page__character--active', avatar: 'characters-page__avatar',
   characterInfo: 'characters-page__character-info', createCharacter: 'characters-page__create', content: 'characters-page__content', characterHeader: 'characters-page__character-header',
+  refreshButton: 'characters-page__refresh', refreshButtonSpinning: 'characters-page__refresh characters-page__refresh--spinning',
+  listDivider: 'characters-page__divider', listDividerChevronOpen: 'characters-page__divider-chevron-open', characterPending: 'characters-page__character-pending', addDetectedButton: 'characters-page__add-detected', detectError: 'characters-page__detect-error',
   characterIdentity: 'characters-page__identity', largeAvatar: 'characters-page__large-avatar', analysisStatus: 'characters-page__analysis-status', headerActions: 'characters-page__header-actions',
   deleteButton: 'characters-page__delete', analyzeButton: 'characters-page__analyze', aliasPanel: 'characters-page__aliases', aliasIntro: 'characters-page__alias-intro', aliasEditor: 'characters-page__alias-editor', aliasTags: 'characters-page__alias-tags', detailGrid: 'characters-page__details', detailCard: 'characters-page__detail-card',
   detailCardWide: 'characters-page__detail-card characters-page__detail-card--wide', emptyAnalysis: 'characters-page__empty-analysis', emptyCharacter: 'characters-page__empty-character',
