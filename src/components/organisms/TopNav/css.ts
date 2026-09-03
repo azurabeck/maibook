@@ -3,6 +3,7 @@ import { injectStyleSheet } from '@/styles/createStyleSheet'
 
 injectStyleSheet('top-nav-organism-css', `
 .top-nav {
+  position: relative;
   height: 64px;
   flex-shrink: 0;
   display: flex;
@@ -82,9 +83,68 @@ injectStyleSheet('top-nav-organism-css', `
   justify-content: center;
 }
 
+.top-nav__mobile-toggle {
+  display: none;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-panel-alt);
+  color: var(--text-secondary);
+}
+
+.top-nav__mobile-toggle:hover {
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+}
+
+.top-nav__mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 16px 32px rgba(17, 13, 31, .14);
+}
+
+.top-nav__mobile-menu a {
+  padding: 12px 14px;
+  border-radius: 9px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.top-nav__mobile-menu a:hover {
+  background: var(--bg-panel-alt);
+}
+
+.top-nav__mobile-menu a.top-nav__mobile-link--active {
+  background: var(--accent-purple-soft);
+  color: var(--accent-purple);
+  font-weight: 700;
+}
+
 @media (max-width: 900px) {
   .top-nav__tabs {
     display: none;
+  }
+
+  .top-nav__mobile-toggle {
+    display: inline-flex;
+    /* as abas (que tinham flex:1 e empurravam tudo pra direita)
+       somem nesse breakpoint — sem isso, o hambúrguer e as ações
+       ficam grudados no logo em vez de irem pro canto direito */
+    margin-left: auto;
   }
 }
 
@@ -106,4 +166,8 @@ export const topNavCss = {
   themeToggle: 'theme-toggle',
   topNavAvatar: 'top-nav__avatar',
   avatarCircle: 'avatar-circle',
+  mobileMenuButton: 'top-nav__mobile-toggle',
+  mobileMenu: 'top-nav__mobile-menu',
+  mobileMenuLink: '',
+  mobileMenuLinkActive: 'top-nav__mobile-link--active',
 } as const

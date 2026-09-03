@@ -6,6 +6,19 @@ injectStyleSheet('locations-page-css', `
 .locations-page__header h1 { margin: 2px 0 5px; font-size: 22px; }
 .locations-page__header > div > p:last-child { max-width: 680px; margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.55; }
 .locations-page__eyebrow { margin: 0; color: var(--accent-purple); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.locations-page__world-map { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-panel); }
+.locations-page__world-map-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.locations-page__world-map-header h2 { margin: 3px 0 4px; font-size: 16px; }
+.locations-page__world-map-header > div > p:last-child { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.locations-page__world-map-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.locations-page__world-map-upload { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 13px; border: 1px solid var(--accent-purple); border-radius: 9px; background: var(--accent-purple); color: white; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.locations-page__world-map-remove { flex: 0 0 auto; width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-panel-alt); color: var(--text-secondary); }
+.locations-page__world-map-remove:hover { border-color: var(--danger); color: var(--danger); }
+.locations-page__world-map-image { width: 100%; max-height: 260px; object-fit: contain; border-radius: 12px; background: var(--bg-panel-alt); }
+.locations-page__world-map-empty { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--border); border-radius: 12px; color: var(--text-secondary); font-size: 12px; }
+.locations-page__world-map-empty p { margin: 0; }
+.locations-page__world-map-error { margin: 0; color: var(--danger); font-size: 11px; }
+
 .locations-page__tabs { display: flex; align-items: center; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .locations-page__tab { min-height: 34px; padding: 0 13px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--text-secondary); font-size: 12px; }
 .locations-page__tab:hover { background: var(--bg-panel-alt); color: var(--text-primary); }
@@ -23,9 +36,14 @@ injectStyleSheet('locations-page-css', `
 .locations-page__location { width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text-secondary); text-align: left; }
 .locations-page__location:hover { background: var(--bg-panel); color: var(--text-primary); }
 .locations-page__location--active { border-color: var(--border); background: var(--bg-panel); color: var(--text-primary); box-shadow: 0 4px 14px rgba(32, 25, 52, .05); }
-.locations-page__avatar, .locations-page__large-avatar { flex: 0 0 auto; display: grid; place-items: center; border-radius: 10px; background: var(--accent-purple-soft); color: var(--accent-purple); font-weight: 800; }
+.locations-page__avatar, .locations-page__large-avatar { flex: 0 0 auto; display: grid; place-items: center; overflow: hidden; border-radius: 10px; background: var(--accent-purple-soft); color: var(--accent-purple); font-weight: 800; }
 .locations-page__avatar { width: 34px; height: 34px; font-size: 10px; }
 .locations-page__large-avatar { width: 52px; height: 52px; border-radius: 14px; font-size: 15px; }
+.locations-page__avatar img, .locations-page__large-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.locations-page__image-wrap { position: relative; flex: 0 0 auto; }
+.locations-page__image-upload { position: absolute; right: -4px; bottom: -4px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-panel); color: var(--text-secondary); cursor: pointer; }
+.locations-page__image-upload:hover { border-color: var(--accent-purple); color: var(--accent-purple); }
+.locations-page__spinner-small { width: 11px; height: 11px; border: 2px solid var(--accent-purple-soft); border-top-color: var(--accent-purple); border-radius: 50%; animation: locations-page-spin .7s linear infinite; }
 .locations-page__location-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .locations-page__location-info strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .locations-page__location-info small { color: var(--text-muted); font-size: 9px; }
@@ -45,7 +63,8 @@ injectStyleSheet('locations-page-css', `
 .locations-page__add-detected:hover { background: var(--accent-purple); color: white; }
 .locations-page__add-detected:disabled { opacity: .5; }
 .locations-page__detect-error { margin: 8px 0 0; color: var(--danger); font-size: 10px; line-height: 1.4; }
-.locations-page__create { display: grid; grid-template-columns: minmax(0, 1fr) 36px; gap: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+.locations-page__create-label { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+.locations-page__create { display: grid; grid-template-columns: minmax(0, 1fr) 36px; gap: 6px; margin-top: 6px; }
 .locations-page__create input { min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; outline: 0; background: var(--bg-panel); color: var(--text-primary); font: inherit; font-size: 11px; }
 .locations-page__create input:focus { border-color: var(--accent-purple); }
 .locations-page__create button { display: grid; place-items: center; border: 1px solid var(--accent-purple); border-radius: 9px; background: var(--accent-purple); color: white; }
@@ -119,11 +138,16 @@ injectStyleSheet('locations-page-css', `
 `)
 
 export const locationsPageCss = {
-  page: 'locations-page', pageHeader: 'locations-page__header', eyebrow: 'locations-page__eyebrow', tabs: 'locations-page__tabs',
+  page: 'locations-page', pageHeader: 'locations-page__header', eyebrow: 'locations-page__eyebrow',
+  worldMapCard: 'locations-page__world-map', worldMapHeader: 'locations-page__world-map-header', worldMapActions: 'locations-page__world-map-actions',
+  worldMapUploadButton: 'locations-page__world-map-upload', worldMapRemoveButton: 'locations-page__world-map-remove',
+  worldMapImage: 'locations-page__world-map-image', worldMapEmpty: 'locations-page__world-map-empty', worldMapError: 'locations-page__world-map-error',
+  imageWrap: 'locations-page__image-wrap', imageUpload: 'locations-page__image-upload', spinnerSmall: 'locations-page__spinner-small',
+  tabs: 'locations-page__tabs',
   tab: 'locations-page__tab', tabActive: 'locations-page__tab locations-page__tab--active', workspace: 'locations-page__workspace',
   sidebar: 'locations-page__sidebar', sidebarHeader: 'locations-page__sidebar-header', search: 'locations-page__search', locationList: 'locations-page__location-list',
   location: 'locations-page__location', locationActive: 'locations-page__location locations-page__location--active', avatar: 'locations-page__avatar',
-  locationInfo: 'locations-page__location-info', createLocation: 'locations-page__create', content: 'locations-page__content', locationHeader: 'locations-page__location-header',
+  locationInfo: 'locations-page__location-info', createLocationLabel: 'locations-page__create-label', createLocation: 'locations-page__create', content: 'locations-page__content', locationHeader: 'locations-page__location-header',
   refreshButton: 'locations-page__refresh', refreshButtonSpinning: 'locations-page__refresh locations-page__refresh--spinning',
   listDivider: 'locations-page__divider', listDividerChevronOpen: 'locations-page__divider-chevron-open', locationPending: 'locations-page__location-pending', addDetectedButton: 'locations-page__add-detected', detectError: 'locations-page__detect-error',
   locationIdentity: 'locations-page__identity', largeAvatar: 'locations-page__large-avatar', analysisStatus: 'locations-page__analysis-status', headerActions: 'locations-page__header-actions',

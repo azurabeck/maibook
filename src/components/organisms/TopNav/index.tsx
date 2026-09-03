@@ -1,5 +1,6 @@
-import { Link, NavLink, useParams } from 'react-router-dom'
-import { Sun, Moon, ChevronDown } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, NavLink, useLocation, useParams } from 'react-router-dom'
+import { Sun, Moon, ChevronDown, Menu, X } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { topNavCss } from './css'
 
@@ -19,6 +20,32 @@ const TABS = [
 export function TopNav() {
   const { theme, toggleTheme } = useTheme()
   const { projectId } = useParams()
+  const location = useLocation()
+
+  // #region Menu mobile (as abas somem em telas pequenas — ver css —
+  // e viram esse menu suspenso aberto pelo botão de hambúrguer)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+
+  // fecha sozinho ao trocar de rota (clicar num link já fecha, mas
+  // isso cobre navegação por outros meios, ex: botão voltar)
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    function handleClickOutside(event: globalThis.MouseEvent) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [mobileMenuOpen])
+  // #endregion
 
   return (
     <header className={topNavCss.topNav}>
@@ -26,7 +53,7 @@ export function TopNav() {
       <Link to="/dashboard" className={topNavCss.topNavLogo}>MAIBOOK</Link>
       {/* #endregion */}
 
-      {/* #region Abas de navegação do projeto */}
+      {/* #region Abas de navegação do projeto (escondidas em telas pequenas) */}
       <nav className={topNavCss.topNavTabs}>
         {TABS.map((tab) => (
           <NavLink
@@ -39,6 +66,18 @@ export function TopNav() {
           </NavLink>
         ))}
       </nav>
+      {/* #endregion */}
+
+      {/* #region Botão de menu (só aparece em telas pequenas) */}
+      <button
+        type="button"
+        className={topNavCss.mobileMenuButton}
+        onClick={() => setMobileMenuOpen((current) => !current)}
+        aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu de navegação'}
+        aria-expanded={mobileMenuOpen}
+      >
+        {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
+      </button>
       {/* #endregion */}
 
       {/* #region Ações (tema + avatar) */}
@@ -57,6 +96,23 @@ export function TopNav() {
           <ChevronDown size={14} />
         </button>
       </div>
+      {/* #endregion */}
+
+      {/* #region Menu suspenso mobile: mesmas abas, em lista */}
+      {mobileMenuOpen && (
+        <div className={topNavCss.mobileMenu} ref={mobileMenuRef}>
+          {TABS.map((tab) => (
+            <NavLink
+              key={tab.path}
+              to={`/projeto/${projectId}/${tab.path}`}
+              className={({ isActive }) => (isActive ? topNavCss.mobileMenuLinkActive : topNavCss.mobileMenuLink)}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              {tab.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
       {/* #endregion */}
     </header>
   )

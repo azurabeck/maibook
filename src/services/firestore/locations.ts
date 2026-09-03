@@ -1,7 +1,7 @@
 // Camada de acesso a dados dos LUGARES no Firestore. Mesmo padrão de
 // personagens: vivem numa subcoleção dentro do próprio projeto ->
 // projects/{projectId}/locations/{locationId}.
-import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import type { BookLocation, LocationConnectionsAnalysis, LocationDetailsAnalysis, LocationEventsAnalysis } from '@/types'
 
@@ -52,6 +52,14 @@ export async function updateLocationFullAnalysis(
     detailsAnalysis: analysis.detailsAnalysis,
     connectionsAnalysis: analysis.connectionsAnalysis,
     eventsAnalysis: analysis.eventsAnalysis,
+    updatedAt: Date.now(),
+  })
+}
+
+// Salva (ou remove, passando null) a imagem do lugar.
+export async function updateLocationImage(projectId: string, locationId: string, imageUrl: string | null) {
+  await updateDoc(locationDoc(projectId, locationId), {
+    imageUrl: imageUrl ?? deleteField(),
     updatedAt: Date.now(),
   })
 }

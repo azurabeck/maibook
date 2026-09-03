@@ -59,6 +59,7 @@ export interface BookProject {
   storyTimelineAnalysis?: StoryTimelineAnalysis
   characterDetectionAnalysis?: CharacterDetectionAnalysis
   locationDetectionAnalysis?: LocationDetectionAnalysis
+  worldMapImageUrl?: string // imagem do mapa geral do mundo do livro
 }
 
 export interface ChapterHeader extends HeaderStructureDraft {

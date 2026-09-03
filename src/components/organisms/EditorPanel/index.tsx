@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import {
   Bold,
   Italic,
@@ -11,6 +12,7 @@ import {
   Link,
   Image,
   Maximize2,
+  Menu,
   MoreVertical,
 } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
@@ -37,6 +39,26 @@ export function EditorPanel() {
   const isSaving = savingChapterId === activeChapterId
   const grid = activeChapter?.grid
 
+  // #region Menu mobile das ações do cabeçalho (Grid/Footer padrão,
+  // gramática, diálogo, visualizar livro) — no celular elas não cabem
+  // lado a lado, então viram um menu hambúrguer (ver css.ts)
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
+  const headerMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!headerMenuOpen) return
+
+    function handleClickOutside(event: globalThis.MouseEvent) {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
+        setHeaderMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [headerMenuOpen])
+  // #endregion
+
   // conta palavras a partir do texto (separa por espaços em branco)
   const wordCount = activeChapter?.content.trim()
     ? activeChapter.content.trim().split(/\s+/).length
@@ -60,7 +82,20 @@ export function EditorPanel() {
             <span className={editorPanelCss.dot} /> {isSaving ? 'Salvando...' : 'Salvo'}
           </span>
         </div>
-        <div className={editorPanelCss.editorPanelHeaderActions}>
+        <button
+          type="button"
+          className={editorPanelCss.mobileMenuToggle}
+          onClick={() => setHeaderMenuOpen((current) => !current)}
+          aria-label={headerMenuOpen ? 'Fechar menu de ações' : 'Abrir menu de ações'}
+          aria-expanded={headerMenuOpen}
+        >
+          <Menu size={16} />
+        </button>
+
+        <div
+          className={headerMenuOpen ? editorPanelCss.editorPanelHeaderActionsOpen : editorPanelCss.editorPanelHeaderActions}
+          ref={headerMenuRef}
+        >
           {currentProject && (
             <ChapterGridSelector
               projectId={currentProject.id}

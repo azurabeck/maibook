@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import {
   Bot,
+  Camera,
   ChevronRight,
   Clock3,
   Download,
   FileSearch,
+  Map,
   MapPin,
   MapPinned,
   Plus,
@@ -22,8 +25,10 @@ import {
   subscribeToLocations,
   updateLocationAliases,
   updateLocationFullAnalysis,
+  updateLocationImage,
 } from '@/services/firestore/locations'
-import { updateLocationDetectionAnalysis } from '@/services/firestore/projects'
+import { updateLocationDetectionAnalysis, updateWorldMapImage } from '@/services/firestore/projects'
+import { uploadLocationImage, uploadWorldMapImage, validateImageFile } from '@/services/storage/images'
 import { useProjectStore } from '@/store/useProjectStore'
 import type { BookLocation, LocationDetailsAnalysis } from '@/types'
 import { locationsPageCss as css } from './css'
@@ -58,6 +63,7 @@ function initials(name: string) {
 export function LocationsPage() {
   const projectId = useProjectStore((state) => state.currentProject?.id)
   const persistedDetection = useProjectStore((state) => state.currentProject?.locationDetectionAnalysis)
+  const worldMapImageUrl = useProjectStore((state) => state.currentProject?.worldMapImageUrl)
   const chapters = useProjectStore((state) => state.chapters)
   const [activeSection, setActiveSection] = useState<LocationPageSection>('Detalhes do lugar')
   const [locations, setLocations] = useState<BookLocation[]>([])
@@ -77,6 +83,10 @@ export function LocationsPage() {
   const [detectError, setDetectError] = useState('')
   const [addingDetectedName, setAddingDetectedName] = useState<string | null>(null)
   const [detectedCollapsed, setDetectedCollapsed] = useState(false)
+  const [uploadingWorldMap, setUploadingWorldMap] = useState(false)
+  const [worldMapError, setWorldMapError] = useState('')
+  const [uploadingLocationImageId, setUploadingLocationImageId] = useState<string | null>(null)
+  const [imageError, setImageError] = useState('')
 
   useEffect(() => {
     if (!projectId) return
@@ -157,6 +167,61 @@ export function LocationsPage() {
       await updateLocationAliases(projectId, activeLocation.id, aliases)
     } finally {
       setSavingAliases(false)
+    }
+  }
+
+  // envia (ou substitui) a imagem do mapa do mundo do projeto
+  const handleWorldMapChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !projectId) return
+
+    const validationError = validateImageFile(file)
+    if (validationError) {
+      setWorldMapError(validationError)
+      return
+    }
+
+    setUploadingWorldMap(true)
+    setWorldMapError('')
+    try {
+      const imageUrl = await uploadWorldMapImage(projectId, file)
+      await updateWorldMapImage(projectId, imageUrl)
+    } catch (error) {
+      setWorldMapError(error instanceof Error ? error.message : 'Não foi possível enviar a imagem.')
+    } finally {
+      setUploadingWorldMap(false)
+    }
+  }
+
+  const handleRemoveWorldMap = async () => {
+    if (!projectId) return
+    const confirmed = window.confirm('Remover o mapa do mundo?')
+    if (!confirmed) return
+    await updateWorldMapImage(projectId, null)
+  }
+
+  // envia (ou substitui) a imagem de um lugar específico
+  const handleLocationImageChange = async (event: ChangeEvent<HTMLInputElement>, location: BookLocation) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !projectId) return
+
+    const validationError = validateImageFile(file)
+    if (validationError) {
+      setImageError(validationError)
+      return
+    }
+
+    setUploadingLocationImageId(location.id)
+    setImageError('')
+    try {
+      const imageUrl = await uploadLocationImage(projectId, location.id, file)
+      await updateLocationImage(projectId, location.id, imageUrl)
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : 'Não foi possível enviar a imagem.')
+    } finally {
+      setUploadingLocationImageId(null)
     }
   }
 
@@ -276,7 +341,7 @@ export function LocationsPage() {
       </header>
 
       <nav className={css.tabs} aria-label="Áreas dos lugares">
-        {(['Detalhes do lugar', 'Conexões', 'Principais eventos'] as LocationPageSection[]).map((section) => (
+        {(['Detalhes do lugar', 'Conexões', 'Principais eventos', 'Mapa do Mundo'] as LocationPageSection[]).map((section) => (
           <button
             className={activeSection === section ? css.tabActive : css.tab}
             key={section}
@@ -320,7 +385,9 @@ export function LocationsPage() {
                 type="button"
                 onClick={() => setActiveLocationId(location.id)}
               >
-                <span className={css.avatar}>{initials(location.name)}</span>
+                <span className={css.avatar}>
+                  {location.imageUrl ? <img src={location.imageUrl} alt="" /> : initials(location.name)}
+                </span>
                 <span className={css.locationInfo}>
                   <strong>{location.name}</strong>
                   <small>{location.detailsAnalysis ? 'Análise disponível' : 'Aguardando análise'}</small>
@@ -365,6 +432,7 @@ export function LocationsPage() {
             )}
           </div>
 
+          <div className={css.createLocationLabel}>Adicionar lugar manualmente</div>
           <div className={css.createLocation}>
             <input
               value={newLocationName}
@@ -372,16 +440,48 @@ export function LocationsPage() {
               onKeyDown={(event) => {
                 if (event.key === 'Enter') void handleCreateLocation()
               }}
-              placeholder="Nome do lugar"
+              placeholder="Nome do lugar que a IA não encontrou"
             />
-            <button type="button" disabled={!newLocationName.trim() || creating} onClick={() => void handleCreateLocation()}>
+            <button type="button" disabled={!newLocationName.trim() || creating} onClick={() => void handleCreateLocation()} title="Adicionar lugar" aria-label="Adicionar lugar">
               <Plus size={16} />
             </button>
           </div>
         </aside>
 
         <main className={css.content}>
-          {activeSection === 'Conexões' && activeLocation ? (
+          {activeSection === 'Mapa do Mundo' ? (
+            <section className={css.worldMapCard}>
+              <header className={css.worldMapHeader}>
+                <div>
+                  <p className={css.eyebrow}>Cartografia</p>
+                  <h2>Mapa do mundo</h2>
+                  <p>Guarde aqui a imagem do mapa geral do seu livro. É a mesma pra todos os lugares — não muda ao trocar o item selecionado ao lado.</p>
+                </div>
+                <div className={css.worldMapActions}>
+                  <label className={css.worldMapUploadButton}>
+                    <input type="file" accept="image/*" hidden onChange={(event) => void handleWorldMapChange(event)} disabled={uploadingWorldMap} />
+                    {uploadingWorldMap ? 'Enviando...' : (worldMapImageUrl ? 'Trocar imagem' : 'Enviar imagem')}
+                  </label>
+                  {worldMapImageUrl && (
+                    <button type="button" className={css.worldMapRemoveButton} onClick={() => void handleRemoveWorldMap()} title="Remover mapa">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              </header>
+
+              {worldMapImageUrl ? (
+                <img className={css.worldMapImage} src={worldMapImageUrl} alt="Mapa do mundo do livro" />
+              ) : (
+                <div className={css.worldMapEmpty}>
+                  <Map size={26} />
+                  <p>Nenhum mapa enviado ainda.</p>
+                </div>
+              )}
+
+              {worldMapError && <p className={css.worldMapError}>{worldMapError}</p>}
+            </section>
+          ) : activeSection === 'Conexões' && activeLocation ? (
             <section className="location-ai-section">
               <header className="location-ai-section__header">
                 <div>
@@ -463,7 +563,21 @@ export function LocationsPage() {
             <>
               <header className={css.locationHeader}>
                 <div className={css.locationIdentity}>
-                  <span className={css.largeAvatar}>{initials(activeLocation.name)}</span>
+                  <div className={css.imageWrap}>
+                    <span className={css.largeAvatar}>
+                      {activeLocation.imageUrl ? <img src={activeLocation.imageUrl} alt="" /> : initials(activeLocation.name)}
+                    </span>
+                    <label className={css.imageUpload} title={activeLocation.imageUrl ? 'Trocar imagem' : 'Adicionar imagem'}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={(event) => void handleLocationImageChange(event, activeLocation)}
+                        disabled={uploadingLocationImageId === activeLocation.id}
+                      />
+                      {uploadingLocationImageId === activeLocation.id ? <span className={css.spinnerSmall} /> : <Camera size={12} />}
+                    </label>
+                  </div>
                   <div>
                     <p className={css.eyebrow}>Dossiê do lugar</p>
                     <h2>{activeLocation.name}</h2>
@@ -485,6 +599,8 @@ export function LocationsPage() {
                   </button>
                 </div>
               </header>
+
+              {imageError && <p className={css.worldMapError}>{imageError}</p>}
 
               <section className={css.aliasPanel}>
                 <div className={css.aliasIntro}>

@@ -7,6 +7,7 @@
 import {
   addDoc,
   collection,
+  deleteField,
   doc,
   onSnapshot,
   query,
@@ -105,4 +106,12 @@ export async function updateLocationDetectionAnalysis(
   locationDetectionAnalysis: LocationDetectionAnalysis,
 ) {
   await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), { locationDetectionAnalysis, updatedAt: Date.now() })
+}
+
+// Salva (ou remove, passando null) a imagem do mapa do mundo do livro.
+export async function updateWorldMapImage(projectId: string, imageUrl: string | null) {
+  await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), {
+    worldMapImageUrl: imageUrl ?? deleteField(),
+    updatedAt: Date.now(),
+  })
 }
