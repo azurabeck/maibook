@@ -77,12 +77,21 @@ export interface ChapterFooter extends FooterStructureDraft {
   sourceStructureName: string
 }
 
+// Tipo de página do capítulo:
+//  - 'text'       -> o padrão: escreve normalmente no editor (comportamento atual)
+//  - 'image'      -> a página inteira é uma única imagem (ocupa 100% de largura/altura, sem texto)
+//  - 'background' -> escreve normalmente, mas com uma imagem de fundo atrás do texto
+// Ausência do campo (capítulos antigos) é tratada como 'text'.
+export type ChapterPageType = 'text' | 'image' | 'background'
+
 export interface Chapter {
   id: string
   projectId: string
   title: string
   order: number // usado pra ordenação dos capítulos
   content: string // texto do capítulo (rich text serializado, ex: HTML/JSON do editor)
+  pageType?: ChapterPageType
+  pageImageUrl?: string // usada quando pageType é 'image' (página cheia) ou 'background' (fundo)
   header?: ChapterHeader
   grid?: ChapterGrid
   footer?: ChapterFooter

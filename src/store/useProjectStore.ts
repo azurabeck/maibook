@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { BookProject, Chapter, ChapterFooter, ChapterGrid, ChapterHeader } from '@/types'
+import type { BookProject, Chapter, ChapterFooter, ChapterGrid, ChapterHeader, ChapterPageType } from '@/types'
 import { renameProject as renameProjectInFirestore, subscribeToProject } from '@/services/firestore/projects'
 import {
   createChapter,
@@ -13,6 +13,8 @@ import {
   updateAllChaptersGridInFirestore,
   updateChapterFooterInFirestore,
   updateAllChaptersFooterInFirestore,
+  updateChapterPageTypeInFirestore,
+  updateChapterPageImageInFirestore,
   reorderChaptersInFirestore,
 } from '@/services/firestore/chapters'
 
@@ -57,7 +59,9 @@ interface ProjectState {
   updateAllChaptersGrid: (grid: ChapterGrid) => Promise<void>
   updateChapterFooter: (chapterId: string, footer: ChapterFooter | null) => Promise<void>
   updateAllChaptersFooter: (footer: ChapterFooter) => Promise<void>
-  addChapter: () => Promise<void>
+  updateChapterPageType: (chapterId: string, pageType: ChapterPageType) => Promise<void>
+  updateChapterPageImage: (chapterId: string, pageImageUrl: string | null) => Promise<void>
+  addChapter: (pageType?: ChapterPageType) => Promise<void>
   renameChapter: (chapterId: string, newTitle: string) => void
   deleteChapter: (chapterId: string) => void
   reorderChapters: (orderedChapterIds: string[]) => Promise<void>
@@ -299,7 +303,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   // cria um novo capítulo no Firestore, já dentro do projeto atual,
   // e o seleciona assim que o id vier de volta
-  addChapter: async () => {
+  addChapter: async (pageType = 'text') => {
     const projectId = get().currentProject?.id
     if (!projectId) return
 
@@ -307,10 +311,48 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const title = `Capítulo ${String(nextOrder).padStart(2, '0')}`
 
     try {
-      const newChapterId = await createChapter(projectId, nextOrder, title)
+      const newChapterId = await createChapter(projectId, nextOrder, title, pageType)
       set({ activeChapterId: newChapterId })
     } catch (error) {
       console.error('Falha ao criar capítulo:', error)
+    }
+  },
+
+  // troca o tipo de página do capítulo (texto / imagem cheia / fundo)
+  updateChapterPageType: async (chapterId, pageType) => {
+    const projectId = get().currentProject?.id
+    if (!projectId) return
+
+    set((state) => ({
+      chapters: state.chapters.map((chapter) =>
+        chapter.id === chapterId ? { ...chapter, pageType } : chapter,
+      ),
+    }))
+
+    try {
+      await updateChapterPageTypeInFirestore(projectId, chapterId, pageType)
+    } catch (error) {
+      console.error('Falha ao trocar o tipo de página do capítulo:', error)
+      throw error
+    }
+  },
+
+  // define (ou remove, passando null) a imagem de página cheia/fundo do capítulo
+  updateChapterPageImage: async (chapterId, pageImageUrl) => {
+    const projectId = get().currentProject?.id
+    if (!projectId) return
+
+    set((state) => ({
+      chapters: state.chapters.map((chapter) =>
+        chapter.id === chapterId ? { ...chapter, pageImageUrl: pageImageUrl ?? undefined } : chapter,
+      ),
+    }))
+
+    try {
+      await updateChapterPageImageInFirestore(projectId, chapterId, pageImageUrl)
+    } catch (error) {
+      console.error('Falha ao salvar a imagem de página do capítulo:', error)
+      throw error
     }
   },
 

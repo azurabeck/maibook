@@ -41,3 +41,8 @@ export async function uploadWorldMapImage(projectId: string, file: File) {
 export async function uploadLocationImage(projectId: string, locationId: string, file: File) {
   return uploadImageTo(`projects/${projectId}/locations/${locationId}/image.${extensionOf(file)}`, file)
 }
+
+// Imagem de página cheia ou de fundo de um capítulo (ver ChapterPageType).
+export async function uploadChapterPageImage(projectId: string, chapterId: string, file: File) {
+  return uploadImageTo(`projects/${projectId}/chapters/${chapterId}/page-image.${extensionOf(file)}`, file)
+}

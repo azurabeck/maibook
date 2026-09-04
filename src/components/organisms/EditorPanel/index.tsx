@@ -1,19 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import {
-  Bold,
-  Italic,
-  Underline,
-  Strikethrough,
-  List,
-  ListOrdered,
-  Quote,
-  AlignLeft,
-  AlignCenter,
-  Link,
-  Image,
-  Maximize2,
-  Menu,
-  MoreVertical,
+  Image as ImageIcon,
+  Search,
+  ChevronUp,
+  ChevronDown,
+  X,
+  FileText,
+  Layers,
+  Trash2,
 } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
 import { ChapterHeader } from '@/components/organisms/ChapterHeader/index'
@@ -22,41 +17,214 @@ import { ChapterFooterSelector } from '@/components/organisms/ChapterFooterSelec
 import { BookPreview } from '@/components/organisms/BookPreview/index'
 import { GrammarCheckModal } from '@/components/organisms/GrammarCheckModal/index'
 import { DialogueSuggestModal } from '@/components/organisms/DialogueSuggestModal/index'
+import { uploadChapterPageImage, validateImageFile } from '@/services/storage/images'
+import { scrollTextareaToIndex } from '@/utils/textareaCaret'
+import type { ChapterPageType } from '@/types'
 import { editorPanelCss } from './css'
 
-// #region Ícones da barra de ferramentas
-// Barra de formatação só visual por enquanto — os botões ainda não
-// aplicam formatação de verdade. Isso entra quando trocarmos o
-// <textarea> por um editor rico (Tiptap/Lexical).
-const TOOLBAR_ICONS = [Bold, Italic, Underline, Strikethrough]
-const LIST_ICONS = [List, ListOrdered]
-const ALIGN_ICONS = [AlignLeft, AlignCenter]
+// #region Tipo de página do capítulo (ver ChapterPageType em types/index.ts)
+const PAGE_TYPE_OPTIONS: Array<{ value: ChapterPageType; label: string; icon: typeof FileText }> = [
+  { value: 'text', label: 'Texto', icon: FileText },
+  { value: 'image', label: 'Imagem', icon: ImageIcon },
+  { value: 'background', label: 'Fundo', icon: Layers },
+]
+
+function PageTypeSwitch({ value, onChange }: { value: ChapterPageType; onChange: (pageType: ChapterPageType) => void }) {
+  return (
+    <div className={editorPanelCss.pageTypeSwitch} role="group" aria-label="Tipo de página do capítulo">
+      {PAGE_TYPE_OPTIONS.map(({ value: optionValue, label, icon: Icon }) => (
+        <button
+          key={optionValue}
+          type="button"
+          className={value === optionValue ? editorPanelCss.pageTypeButtonActive : editorPanelCss.pageTypeButton}
+          onClick={() => onChange(optionValue)}
+          title={`Página de ${label.toLowerCase()}`}
+        >
+          <Icon size={14} /> <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+// #endregion
+
+// #region Upload da imagem de página (tipo "image" = página inteira / "background" = fundo)
+interface ChapterPageImageControlProps {
+  projectId: string
+  chapterId: string
+  imageUrl?: string
+  variant: 'full' | 'background'
+  onChange: (url: string | null) => Promise<void>
+}
+
+function ChapterPageImageControl({ projectId, chapterId, imageUrl, variant, onChange }: ChapterPageImageControlProps) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    const validationError = validateImageFile(file)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    setUploading(true)
+    setError('')
+    try {
+      const url = await uploadChapterPageImage(projectId, chapterId, file)
+      await onChange(url)
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Não foi possível enviar a imagem.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleRemove() {
+    setError('')
+    try {
+      await onChange(null)
+    } catch {
+      setError('Não foi possível remover a imagem.')
+    }
+  }
+
+  if (variant === 'full') {
+    return (
+      <div className={editorPanelCss.pageImageFull}>
+        {imageUrl ? (
+          <img className={editorPanelCss.pageImageFullPreview} src={imageUrl} alt="Imagem da página" />
+        ) : (
+          <div className={editorPanelCss.pageImageFullEmpty}>
+            <ImageIcon size={32} />
+            <p>Esta página é apenas uma imagem, ocupando toda a largura e altura.</p>
+          </div>
+        )}
+        <div className={editorPanelCss.pageImageFullActions}>
+          <label className={editorPanelCss.pageImageUploadButton}>
+            <input type="file" accept="image/*" hidden onChange={(event) => void handleFile(event)} disabled={uploading} />
+            {uploading ? 'Enviando...' : imageUrl ? 'Trocar imagem' : 'Enviar imagem'}
+          </label>
+          {imageUrl && (
+            <button className={editorPanelCss.pageImageRemoveButton} type="button" onClick={() => void handleRemove()}>
+              <Trash2 size={14} /> Remover
+            </button>
+          )}
+        </div>
+        {error && <p className={editorPanelCss.pageImageError}>{error}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div className={editorPanelCss.pageBackgroundBar}>
+      <span className={editorPanelCss.pageBackgroundLabel}><ImageIcon size={14} /> Fundo da página</span>
+      {imageUrl && <img className={editorPanelCss.pageBackgroundThumb} src={imageUrl} alt="" />}
+      <label className={editorPanelCss.pageImageUploadButtonSmall}>
+        <input type="file" accept="image/*" hidden onChange={(event) => void handleFile(event)} disabled={uploading} />
+        {uploading ? 'Enviando...' : imageUrl ? 'Trocar' : 'Adicionar imagem'}
+      </label>
+      {imageUrl && (
+        <button className={editorPanelCss.pageImageRemoveButtonSmall} type="button" onClick={() => void handleRemove()} title="Remover fundo">
+          <Trash2 size={13} />
+        </button>
+      )}
+      {error && <span className={editorPanelCss.pageImageErrorSmall}>{error}</span>}
+    </div>
+  )
+}
 // #endregion
 
 export function EditorPanel() {
-  const { currentProject, chapters, activeChapterId, updateChapterContent, updateChapterHeader, updateChapterGrid, updateAllChaptersGrid, updateChapterFooter, updateAllChaptersFooter, savingChapterId } = useProjectStore()
+  const {
+    currentProject,
+    chapters,
+    activeChapterId,
+    updateChapterContent,
+    updateChapterHeader,
+    updateChapterGrid,
+    updateAllChaptersGrid,
+    updateChapterFooter,
+    updateAllChaptersFooter,
+    updateChapterPageType,
+    updateChapterPageImage,
+    savingChapterId,
+  } = useProjectStore()
   const activeChapter = chapters.find((ch) => ch.id === activeChapterId)
   const isSaving = savingChapterId === activeChapterId
   const grid = activeChapter?.grid
+  const pageType: ChapterPageType = activeChapter?.pageType ?? 'text'
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // #region Menu mobile das ações do cabeçalho (Grid/Footer padrão,
-  // gramática, diálogo, visualizar livro) — no celular elas não cabem
-  // lado a lado, então viram um menu hambúrguer (ver css.ts)
-  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
-  const headerMenuRef = useRef<HTMLDivElement>(null)
+  // #region Busca no texto do capítulo
+  // Como o "editor" ainda é um <textarea> simples, a busca funciona
+  // selecionando e rolando até cada trecho encontrado — não dá pra
+  // pintar todas as ocorrências de cor, isso fica pra quando
+  // trocarmos por um editor rico de verdade (Tiptap/Lexical).
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [matchIndex, setMatchIndex] = useState(0)
 
-  useEffect(() => {
-    if (!headerMenuOpen) return
+  const searchMatches = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    const content = activeChapter?.content ?? ''
+    if (!query) return [] as Array<{ start: number; end: number }>
 
-    function handleClickOutside(event: globalThis.MouseEvent) {
-      if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
-        setHeaderMenuOpen(false)
-      }
+    const found: Array<{ start: number; end: number }> = []
+    const lowerContent = content.toLowerCase()
+    let from = 0
+    while (from <= lowerContent.length) {
+      const index = lowerContent.indexOf(query, from)
+      if (index === -1) break
+      found.push({ start: index, end: index + query.length })
+      from = index + query.length
     }
+    return found
+  }, [searchQuery, activeChapter?.content])
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [headerMenuOpen])
+  function selectMatch(index: number) {
+    const textarea = textareaRef.current
+    const match = searchMatches[index]
+    if (!textarea || !match) return
+    textarea.focus()
+    textarea.setSelectionRange(match.start, match.end)
+    scrollTextareaToIndex(textarea, match.start)
+  }
+
+  // ao digitar uma nova busca, volta pro primeiro resultado
+  useEffect(() => {
+    setMatchIndex(0)
+    if (searchMatches.length) selectMatch(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery])
+
+  function goToMatch(step: 1 | -1) {
+    if (!searchMatches.length) return
+    const next = (matchIndex + step + searchMatches.length) % searchMatches.length
+    setMatchIndex(next)
+    selectMatch(next)
+  }
+
+  function closeSearch() {
+    setSearchOpen(false)
+    setSearchQuery('')
+    setMatchIndex(0)
+  }
+
+  function toggleSearch() {
+    setSearchOpen((current) => {
+      const next = !current
+      if (!next) {
+        setSearchQuery('')
+        setMatchIndex(0)
+      }
+      return next
+    })
+  }
   // #endregion
 
   // conta palavras a partir do texto (separa por espaços em branco)
@@ -72,9 +240,13 @@ export function EditorPanel() {
     )
   }
 
+  const isFullImagePage = pageType === 'image'
+  const isBackgroundPage = pageType === 'background'
+
   return (
     <section className={editorPanelCss.panel + ' ' + editorPanelCss.editorPanel}>
-      {/* #region Cabeçalho do capítulo */}
+      {/* #region Cabeçalho do capítulo: só o título e a busca ficam
+          aqui em cima — o resto das ações vive na linha abaixo. */}
       <div className={editorPanelCss.editorPanelHeader}>
         <div className={editorPanelCss.editorPanelTitleRow}>
           <h2>{activeChapter.title}</h2>
@@ -82,78 +254,91 @@ export function EditorPanel() {
             <span className={editorPanelCss.dot} /> {isSaving ? 'Salvando...' : 'Salvo'}
           </span>
         </div>
-        <button
-          type="button"
-          className={editorPanelCss.mobileMenuToggle}
-          onClick={() => setHeaderMenuOpen((current) => !current)}
-          aria-label={headerMenuOpen ? 'Fechar menu de ações' : 'Abrir menu de ações'}
-          aria-expanded={headerMenuOpen}
-        >
-          <Menu size={16} />
-        </button>
 
-        <div
-          className={headerMenuOpen ? editorPanelCss.editorPanelHeaderActionsOpen : editorPanelCss.editorPanelHeaderActions}
-          ref={headerMenuRef}
-        >
-          {currentProject && (
-            <ChapterGridSelector
-              projectId={currentProject.id}
-              currentGrid={activeChapter.grid}
-              onApplyCurrent={(selectedGrid) => updateChapterGrid(activeChapter.id, selectedGrid)}
-              onApplyAll={updateAllChaptersGrid}
-            />
-          )}
-          {currentProject && (
-            <ChapterFooterSelector
-              projectId={currentProject.id}
-              currentFooter={activeChapter.footer}
-              onApplyCurrent={(selectedFooter) => updateChapterFooter(activeChapter.id, selectedFooter)}
-              onApplyAll={updateAllChaptersFooter}
-            />
-          )}
+        {!isFullImagePage && (
+          <button
+            className={searchOpen ? editorPanelCss.searchToggleActive : editorPanelCss.searchToggle}
+            type="button"
+            onClick={toggleSearch}
+            title="Buscar no texto"
+          >
+            <Search size={15} /> <span>Buscar</span>
+          </button>
+        )}
+      </div>
+      {/* #endregion */}
+
+      {/* #region Barra de busca */}
+      {searchOpen && !isFullImagePage && (
+        <div className={editorPanelCss.searchBar}>
+          <Search size={15} className={editorPanelCss.searchBarIcon} />
+          <input
+            className={editorPanelCss.searchBarInput}
+            type="text"
+            autoFocus
+            placeholder="Buscar palavra ou trecho no texto..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') goToMatch(event.shiftKey ? -1 : 1)
+              if (event.key === 'Escape') closeSearch()
+            }}
+          />
+          <span className={editorPanelCss.searchBarCount}>
+            {searchQuery.trim() ? (searchMatches.length ? `${matchIndex + 1} de ${searchMatches.length}` : 'Nenhum resultado') : ''}
+          </span>
+          <button type="button" onClick={() => goToMatch(-1)} disabled={!searchMatches.length} title="Anterior (Shift+Enter)">
+            <ChevronUp size={16} />
+          </button>
+          <button type="button" onClick={() => goToMatch(1)} disabled={!searchMatches.length} title="Próximo (Enter)">
+            <ChevronDown size={16} />
+          </button>
+          <button type="button" onClick={closeSearch} title="Fechar busca">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      {/* #endregion */}
+
+      {/* #region Ações do capítulo (grid, footer, cabeçalho, IA, visualizar livro) */}
+      <div className={editorPanelCss.editorPanelActionsRow}>
+        <PageTypeSwitch value={pageType} onChange={(newPageType) => void updateChapterPageType(activeChapter.id, newPageType)} />
+
+        {!isFullImagePage && currentProject && (
+          <ChapterGridSelector
+            projectId={currentProject.id}
+            currentGrid={activeChapter.grid}
+            onApplyCurrent={(selectedGrid) => updateChapterGrid(activeChapter.id, selectedGrid)}
+            onApplyAll={updateAllChaptersGrid}
+          />
+        )}
+        {!isFullImagePage && currentProject && (
+          <ChapterFooterSelector
+            projectId={currentProject.id}
+            currentFooter={activeChapter.footer}
+            onApplyCurrent={(selectedFooter) => updateChapterFooter(activeChapter.id, selectedFooter)}
+            onApplyAll={updateAllChaptersFooter}
+          />
+        )}
+        {!isFullImagePage && (
           <GrammarCheckModal
             key={`grammar-${activeChapter.id}`}
             content={activeChapter.content}
             onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
           />
+        )}
+        {!isFullImagePage && (
           <DialogueSuggestModal
             key={`dialogue-${activeChapter.id}`}
             content={activeChapter.content}
             onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
           />
-          <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} />
-        </div>
+        )}
+        <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} />
       </div>
       {/* #endregion */}
 
-      {/* #region Barra de ferramentas */}
-      <div className={editorPanelCss.editorPanelToolbar}>
-        <button className={editorPanelCss.toolbarDropdown}>Parágrafo ⌄</button>
-        {TOOLBAR_ICONS.map((Icon, i) => (
-          <Icon key={i} size={16} />
-        ))}
-        <span className={editorPanelCss.toolbarDivider} />
-        <span className={editorPanelCss.toolbarQuote}>”</span>
-        {LIST_ICONS.map((Icon, i) => (
-          <Icon key={i} size={16} />
-        ))}
-        <span className={editorPanelCss.toolbarDivider} />
-        {ALIGN_ICONS.map((Icon, i) => (
-          <Icon key={i} size={16} />
-        ))}
-        <Quote size={16} />
-        <Link size={16} />
-        <Image size={16} />
-        <div className={editorPanelCss.toolbarMeta}>
-          <span className={editorPanelCss.editorPanelWordCount}>{wordCount} palavras</span>
-          <Maximize2 size={16} />
-          <MoreVertical size={16} />
-        </div>
-      </div>
-      {/* #endregion */}
-
-      {currentProject && (
+      {!isFullImagePage && currentProject && (
         <ChapterHeader
           projectId={currentProject.id}
           value={activeChapter.header ?? null}
@@ -161,25 +346,58 @@ export function EditorPanel() {
         />
       )}
 
-      {/* #region Área de texto */}
-      <div className={editorPanelCss.editorCanvas}>
-        <textarea
-          className={editorPanelCss.editorPanelTextarea}
-          value={activeChapter.content}
-          placeholder="Comece a escrever..."
-          style={grid ? {
-            fontFamily: grid.fontFamily,
-            fontSize: `${grid.fontSize}pt`,
-            lineHeight: grid.lineHeight,
-            textAlign: grid.textAlignment,
-            hyphens: grid.hyphenation ? 'auto' : 'none',
-            overflowWrap: 'break-word',
+      {/* #region Área de conteúdo */}
+      {isFullImagePage ? (
+        currentProject && (
+          <ChapterPageImageControl
+            projectId={currentProject.id}
+            chapterId={activeChapter.id}
+            imageUrl={activeChapter.pageImageUrl}
+            variant="full"
+            onChange={(url) => updateChapterPageImage(activeChapter.id, url)}
+          />
+        )
+      ) : (
+        <div
+          className={editorPanelCss.editorCanvas}
+          style={isBackgroundPage && activeChapter.pageImageUrl ? {
+            backgroundImage: `url(${activeChapter.pageImageUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
           } : undefined}
-          // A grid formata apenas o texto durante a escrita.
-          // Página, margens, cabeçalho e rodapé pertencem à visualização do livro.
-          onChange={(e) => updateChapterContent(activeChapter.id, e.target.value)}
-        />
-      </div>
+        >
+          {isBackgroundPage && currentProject && (
+            <ChapterPageImageControl
+              projectId={currentProject.id}
+              chapterId={activeChapter.id}
+              imageUrl={activeChapter.pageImageUrl}
+              variant="background"
+              onChange={(url) => updateChapterPageImage(activeChapter.id, url)}
+            />
+          )}
+          <textarea
+            ref={textareaRef}
+            className={
+              isBackgroundPage && activeChapter.pageImageUrl
+                ? `${editorPanelCss.editorPanelTextarea} ${editorPanelCss.editorPanelTextareaOnImage}`
+                : editorPanelCss.editorPanelTextarea
+            }
+            value={activeChapter.content}
+            placeholder="Comece a escrever..."
+            style={grid ? {
+              fontFamily: grid.fontFamily,
+              fontSize: `${grid.fontSize}pt`,
+              lineHeight: grid.lineHeight,
+              textAlign: grid.textAlignment,
+              hyphens: grid.hyphenation ? 'auto' : 'none',
+              overflowWrap: 'break-word',
+            } : undefined}
+            // A grid formata apenas o texto durante a escrita.
+            // Página, margens, cabeçalho e rodapé pertencem à visualização do livro.
+            onChange={(e) => updateChapterContent(activeChapter.id, e.target.value)}
+          />
+        </div>
+      )}
       {/* #endregion */}
 
       {/* #region Rodapé */}

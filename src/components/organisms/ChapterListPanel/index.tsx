@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent } from 'react'
-import { GripVertical, MoreVertical, Plus, Pencil, Trash2 } from 'lucide-react'
+import { GripVertical, MoreVertical, Plus, Pencil, Trash2, FileText, Image as ImageIcon, Layers } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
+import type { ChapterPageType } from '@/types'
 import { chapterListPanelCss } from './css'
+
+// Opções oferecidas ao criar um capítulo novo — ver ChapterPageType.
+const NEW_CHAPTER_OPTIONS: Array<{ pageType: ChapterPageType; label: string; hint: string; icon: typeof FileText }> = [
+  { pageType: 'text', label: 'Página de texto', hint: 'O padrão: escreva normalmente', icon: FileText },
+  { pageType: 'image', label: 'Imagem de página inteira', hint: 'Uma imagem ocupando toda a página', icon: ImageIcon },
+  { pageType: 'background', label: 'Texto com fundo', hint: 'Escreva sobre uma imagem de fundo', icon: Layers },
+]
 
 export function ChapterListPanel() {
   // pega do store o projeto atual, a lista de capítulos, qual está
@@ -28,6 +36,29 @@ export function ChapterListPanel() {
   const [dropPosition, setDropPosition] = useState<'before' | 'after'>('before')
   const [reordering, setReordering] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  // #endregion
+
+  // #region Estado do popover "Novo Capítulo" (escolha do tipo de página)
+  const [newChapterMenuOpen, setNewChapterMenuOpen] = useState(false)
+  const newChapterMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!newChapterMenuOpen) return
+
+    function handleClickOutside(event: globalThis.MouseEvent) {
+      if (newChapterMenuRef.current && !newChapterMenuRef.current.contains(event.target as Node)) {
+        setNewChapterMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [newChapterMenuOpen])
+
+  function handleAddChapter(pageType: ChapterPageType) {
+    setNewChapterMenuOpen(false)
+    void addChapter(pageType)
+  }
   // #endregion
 
   // #region Estado do menu de contexto do projeto (3 pontinhos)
@@ -319,9 +350,26 @@ export function ChapterListPanel() {
       {/* #endregion */}
 
       {/* #region Novo capítulo */}
-      <button className={chapterListPanelCss.chapterListAdd} onClick={addChapter}>
-        <Plus size={16} /> Novo Capítulo
-      </button>
+      <div className={chapterListPanelCss.chapterListNewChapter} ref={newChapterMenuRef}>
+        <button
+          className={chapterListPanelCss.chapterListAdd}
+          type="button"
+          onClick={() => setNewChapterMenuOpen((current) => !current)}
+        >
+          <Plus size={16} /> Novo Capítulo
+        </button>
+
+        {newChapterMenuOpen && (
+          <div className={chapterListPanelCss.chapterListNewChapterMenu}>
+            {NEW_CHAPTER_OPTIONS.map(({ pageType, label, hint, icon: Icon }) => (
+              <button key={pageType} type="button" onClick={() => handleAddChapter(pageType)}>
+                <Icon size={15} />
+                <span><strong>{label}</strong><small>{hint}</small></span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {/* #endregion */}
     </aside>
   )

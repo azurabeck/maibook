@@ -204,6 +204,62 @@ injectStyleSheet('chapter-list-panel-organism-css', `
   font-size: 14px;
   font-weight: 600;
   padding: 8px 10px;
+  width: 100%;
+}
+
+.chapter-list__new-chapter {
+  position: relative;
+}
+
+.chapter-list__new-chapter-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+
+.chapter-list__new-chapter-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.chapter-list__new-chapter-menu button:hover {
+  background: var(--bg-panel-alt);
+}
+
+.chapter-list__new-chapter-menu button svg {
+  flex: 0 0 auto;
+  color: var(--accent-purple);
+}
+
+.chapter-list__new-chapter-menu button span {
+  display: flex;
+  flex-direction: column;
+}
+
+.chapter-list__new-chapter-menu button strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chapter-list__new-chapter-menu button small {
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 `)
 
@@ -228,4 +284,6 @@ export const chapterListPanelCss = {
   chapterListMenu: 'chapter-list__menu',
   danger: 'danger',
   chapterListAdd: 'chapter-list__add',
+  chapterListNewChapter: 'chapter-list__new-chapter',
+  chapterListNewChapterMenu: 'chapter-list__new-chapter-menu',
 } as const

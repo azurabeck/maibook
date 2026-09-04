@@ -25,6 +25,8 @@ interface PreviewPage {
   paragraphs: PageParagraph[]
   chapterPageIndex: number
   contentHeight: number
+  isFullImage?: boolean // pageType 'image': a página é só a imagem, sem margens/texto
+  backgroundImageUrl?: string // pageType 'background': imagem atrás do texto desta página
 }
 
 const MM_TO_PX = 96 / 25.4
@@ -167,6 +169,24 @@ function paginateChapter(chapter: Chapter): PreviewPage[] {
   const portrait = grid?.orientation !== 'landscape'
   const width = portrait ? format.width : format.height
   const height = portrait ? format.height : format.width
+
+  // pageType 'image': a página inteira é uma única imagem, sem
+  // margens, cabeçalho, rodapé ou texto — nem entra na paginação normal.
+  if (chapter.pageType === 'image') {
+    return [{
+      id: `${chapter.id}-0`,
+      chapter,
+      grid,
+      width,
+      height,
+      paragraphs: [],
+      chapterPageIndex: 0,
+      contentHeight: height,
+      isFullImage: true,
+    }]
+  }
+
+  const backgroundImageUrl = chapter.pageType === 'background' ? chapter.pageImageUrl : undefined
   const contentWidthMm = width - (grid?.marginLeft ?? 16) - (grid?.marginRight ?? 16)
   const baseContentHeightMm = height
     - (grid?.marginTop ?? 18)
@@ -175,7 +195,7 @@ function paginateChapter(chapter: Chapter): PreviewPage[] {
 
   const paragraphs = splitParagraphs(chapter.content)
   if (!paragraphs.length) {
-    return [{ id: `${chapter.id}-0`, chapter, grid, width, height, paragraphs: [], chapterPageIndex: 0, contentHeight: baseContentHeightMm - (chapter.header ? estimateHeaderHeightPx(chapter) / MM_TO_PX + HEADER_CONTENT_GAP_MM : 0) }]
+    return [{ id: `${chapter.id}-0`, chapter, grid, width, height, paragraphs: [], chapterPageIndex: 0, contentHeight: baseContentHeightMm - (chapter.header ? estimateHeaderHeightPx(chapter) / MM_TO_PX + HEADER_CONTENT_GAP_MM : 0), backgroundImageUrl }]
   }
 
   const pages: PreviewPage[] = []
@@ -231,6 +251,7 @@ function paginateChapter(chapter: Chapter): PreviewPage[] {
       paragraphs: pageParagraphs,
       chapterPageIndex: pageIndex,
       contentHeight: contentHeightMm,
+      backgroundImageUrl,
     })
   }
 
@@ -353,6 +374,31 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
                 {pages.map((page, pageIndex) => {
                   const { chapter, grid } = page
                   const isFirstChapterPage = page.chapterPageIndex === 0
+
+                  if (page.isFullImage) {
+                    return (
+                      <article
+                        className={bookPreviewCss.page}
+                        key={page.id}
+                        data-active={chapter.id === activeChapterId}
+                        data-book-page="true"
+                        style={{ width: `${page.width}mm`, height: `${page.height}mm`, padding: 0 }}
+                      >
+                        {chapter.pageImageUrl ? (
+                          <img
+                            src={chapter.pageImageUrl}
+                            alt={chapter.title}
+                            style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div className={bookPreviewCss.empty} style={{ minHeight: '100%', color: '#a29a8c' }}>
+                            Nenhuma imagem definida para esta página.
+                          </div>
+                        )}
+                      </article>
+                    )
+                  }
+
                   return (
                     <article
                       className={bookPreviewCss.page}
@@ -363,6 +409,9 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
                         width: `${page.width}mm`,
                         height: `${page.height}mm`,
                         padding: `${grid?.marginTop ?? 18}mm ${grid?.marginRight ?? 16}mm ${grid?.marginBottom ?? 20}mm ${grid?.marginLeft ?? 16}mm`,
+                        backgroundImage: page.backgroundImageUrl ? `url(${page.backgroundImageUrl})` : undefined,
+                        backgroundSize: page.backgroundImageUrl ? 'cover' : undefined,
+                        backgroundPosition: page.backgroundImageUrl ? 'center' : undefined,
                       }}
                     >
                       <span className={bookPreviewCss.chapterLabel}>{chapter.title}</span>
@@ -393,7 +442,7 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
                           >
                             {paragraph.text}
                           </p>
-                        )) : <p>Este capítulo ainda não possui texto.</p>}
+                        )): ""}
                       </div>
                       {chapter.footer ? (
                         <div

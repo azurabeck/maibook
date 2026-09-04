@@ -18,7 +18,7 @@
 
 import { addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, orderBy, query, updateDoc, writeBatch } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { Chapter, ChapterFooter, ChapterGrid, ChapterHeader } from '@/types'
+import type { Chapter, ChapterFooter, ChapterGrid, ChapterHeader, ChapterPageType } from '@/types'
 
 function chaptersCollection(projectId: string) {
   return collection(db, 'projects', projectId, 'chapters')
@@ -45,11 +45,19 @@ export function subscribeToChapters(
 }
 
 // Cria um capítulo novo dentro do projeto e devolve o id gerado.
-export async function createChapter(projectId: string, order: number, title: string) {
+// pageType default 'text' não é gravado no doc (capítulo comum, sem
+// campo nenhum) — só gravamos quando é um tipo especial de página.
+export async function createChapter(
+  projectId: string,
+  order: number,
+  title: string,
+  pageType: ChapterPageType = 'text',
+) {
   const docRef = await addDoc(chaptersCollection(projectId), {
     title,
     order,
     content: '',
+    ...(pageType !== 'text' ? { pageType } : {}),
   })
   return docRef.id
 }
@@ -80,6 +88,26 @@ export async function updateChapterNotesInFirestore(
   notes: string,
 ) {
   await updateDoc(chapterDoc(projectId, chapterId), { notes })
+}
+
+export async function updateChapterPageTypeInFirestore(
+  projectId: string,
+  chapterId: string,
+  pageType: ChapterPageType,
+) {
+  await updateDoc(chapterDoc(projectId, chapterId), {
+    pageType: pageType === 'text' ? deleteField() : pageType,
+  })
+}
+
+export async function updateChapterPageImageInFirestore(
+  projectId: string,
+  chapterId: string,
+  pageImageUrl: string | null,
+) {
+  await updateDoc(chapterDoc(projectId, chapterId), {
+    pageImageUrl: pageImageUrl ?? deleteField(),
+  })
 }
 
 export async function updateChapterHeaderInFirestore(
