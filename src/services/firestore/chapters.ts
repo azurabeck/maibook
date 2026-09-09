@@ -162,13 +162,25 @@ export async function updateAllChaptersFooterInFirestore(
 }
 
 
+// Uma mudança de posição e/ou de "pai" pra um capítulo. `order` é
+// sempre único entre irmãos (mesmo parentId), não um índice global.
+// `parentId`: omitido = não mexe; null = remove (o capítulo vira
+// raiz); string = novo pai (aninha dentro dele).
+export interface ChapterOrderUpdate {
+  id: string
+  order: number
+  parentId?: string | null
+}
+
 export async function reorderChaptersInFirestore(
   projectId: string,
-  chapters: Array<{ id: string; order: number }>,
+  updates: ChapterOrderUpdate[],
 ) {
   const batch = writeBatch(db)
-  chapters.forEach((chapter) => {
-    batch.update(chapterDoc(projectId, chapter.id), { order: chapter.order })
+  updates.forEach(({ id, order, parentId }) => {
+    const data: Record<string, unknown> = { order }
+    if (parentId !== undefined) data.parentId = parentId === null ? deleteField() : parentId
+    batch.update(chapterDoc(projectId, id), data)
   })
   await batch.commit()
 }

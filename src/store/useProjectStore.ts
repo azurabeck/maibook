@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { BookProject, Chapter, ChapterFooter, ChapterGrid, ChapterHeader, ChapterPageType } from '@/types'
 import { renameProject as renameProjectInFirestore, subscribeToProject } from '@/services/firestore/projects'
+import type { ChapterOrderUpdate } from '@/services/firestore/chapters'
 import {
   createChapter,
   deleteChapterInFirestore,
@@ -64,7 +65,10 @@ interface ProjectState {
   addChapter: (pageType?: ChapterPageType) => Promise<void>
   renameChapter: (chapterId: string, newTitle: string) => void
   deleteChapter: (chapterId: string) => void
-  reorderChapters: (orderedChapterIds: string[]) => Promise<void>
+  // Reordena e/ou reaninha capítulos — usado tanto pra reordenar
+  // dentro do mesmo grupo quanto pra arrastar um capítulo pra dentro
+  // de outro (ver ChapterListPanel).
+  reorderChapters: (updates: ChapterOrderUpdate[]) => Promise<void>
 }
 // #endregion
 
@@ -302,12 +306,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   // cria um novo capítulo no Firestore, já dentro do projeto atual,
-  // e o seleciona assim que o id vier de volta
+  // e o seleciona assim que o id vier de volta — sempre no nível raiz,
+  // depois de todos os outros capítulos raiz (ver Chapter.parentId)
   addChapter: async (pageType = 'text') => {
     const projectId = get().currentProject?.id
     if (!projectId) return
 
-    const nextOrder = get().chapters.length + 1
+    const rootChapters = get().chapters.filter((chapter) => !chapter.parentId)
+    const nextOrder = rootChapters.length + 1
     const title = `Capítulo ${String(nextOrder).padStart(2, '0')}`
 
     try {
@@ -370,28 +376,27 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     )
   },
 
-  reorderChapters: async (orderedChapterIds) => {
+  reorderChapters: async (updates) => {
     const projectId = get().currentProject?.id
-    if (!projectId || orderedChapterIds.length < 2) return
+    if (!projectId || !updates.length) return
 
     const previousChapters = get().chapters
-    const chapterById = new Map(previousChapters.map((chapter) => [chapter.id, chapter]))
-    const reorderedChapters = orderedChapterIds
-      .map((chapterId, index) => {
-        const chapter = chapterById.get(chapterId)
-        return chapter ? { ...chapter, order: index + 1 } : null
-      })
-      .filter((chapter): chapter is Chapter => chapter !== null)
+    const updateById = new Map(updates.map((update) => [update.id, update]))
 
-    if (reorderedChapters.length !== previousChapters.length) return
-
-    set({ chapters: reorderedChapters })
+    set((state) => ({
+      chapters: state.chapters.map((chapter) => {
+        const update = updateById.get(chapter.id)
+        if (!update) return chapter
+        return {
+          ...chapter,
+          order: update.order,
+          parentId: update.parentId === undefined ? chapter.parentId : (update.parentId ?? undefined),
+        }
+      }),
+    }))
 
     try {
-      await reorderChaptersInFirestore(
-        projectId,
-        reorderedChapters.map((chapter) => ({ id: chapter.id, order: chapter.order })),
-      )
+      await reorderChaptersInFirestore(projectId, updates)
     } catch (error) {
       set({ chapters: previousChapters })
       console.error('Falha ao reordenar capítulos:', error)
@@ -399,12 +404,37 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  // remove da tela na hora (otimista) e apaga no Firestore
+  // remove da tela na hora (otimista) e apaga no Firestore. Se o
+  // capítulo tinha filhos aninhados, eles "sobem" um nível — viram
+  // irmãos do pai do capítulo apagado (ou raiz, se ele era raiz) —
+  // em vez de desaparecerem junto.
   deleteChapter: (chapterId) => {
     const projectId = get().currentProject?.id
+    const allChapters = get().chapters
+    const deleted = allChapters.find((chapter) => chapter.id === chapterId)
+    const orphanedChildren = allChapters
+      .filter((chapter) => chapter.parentId === chapterId)
+      .sort((a, b) => a.order - b.order)
+
+    const newParentId = deleted?.parentId
+    const newSiblingsMaxOrder = allChapters
+      .filter((chapter) => chapter.id !== chapterId && (chapter.parentId ?? undefined) === newParentId)
+      .reduce((max, chapter) => Math.max(max, chapter.order), 0)
+
+    const childUpdates: ChapterOrderUpdate[] = orphanedChildren.map((child, index) => ({
+      id: child.id,
+      order: newSiblingsMaxOrder + index + 1,
+      parentId: newParentId ?? null,
+    }))
+    const childUpdateById = new Map(childUpdates.map((update) => [update.id, update]))
 
     set((state) => {
-      const remaining = state.chapters.filter((ch) => ch.id !== chapterId)
+      const remaining = state.chapters
+        .filter((chapter) => chapter.id !== chapterId)
+        .map((chapter) => {
+          const update = childUpdateById.get(chapter.id)
+          return update ? { ...chapter, order: update.order, parentId: update.parentId ?? undefined } : chapter
+        })
       const wasActive = state.activeChapterId === chapterId
       return {
         chapters: remaining,
@@ -425,8 +455,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
 
     if (!projectId) return
-    deleteChapterInFirestore(projectId, chapterId).catch((error) =>
-      console.error('Falha ao deletar capítulo:', error),
-    )
+    ;(async () => {
+      try {
+        if (childUpdates.length) await reorderChaptersInFirestore(projectId, childUpdates)
+        await deleteChapterInFirestore(projectId, chapterId)
+      } catch (error) {
+        console.error('Falha ao deletar capítulo:', error)
+      }
+    })()
   },
 }))

@@ -92,6 +92,11 @@ export interface Chapter {
   content: string // texto do capítulo (rich text serializado, ex: HTML/JSON do editor)
   pageType?: ChapterPageType
   pageImageUrl?: string // usada quando pageType é 'image' (página cheia) ou 'background' (fundo)
+  // Capítulo "pai" deste, na lista lateral — permite aninhar capítulos
+  // dentro de outros (arrastando um em cima do outro, tipo camadas do
+  // Figma). Ausente = capítulo de nível raiz. `order` é único entre
+  // irmãos (mesmo parentId), não um índice global.
+  parentId?: string
   header?: ChapterHeader
   grid?: ChapterGrid
   footer?: ChapterFooter

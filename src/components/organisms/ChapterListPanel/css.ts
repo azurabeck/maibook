@@ -80,6 +80,15 @@ injectStyleSheet('chapter-list-panel-organism-css', `
   bottom: -2px;
 }
 
+/* soltar em cima (não antes/depois) do item: vira filho dele — igual
+   ao painel de camadas do Figma */
+.chapter-list__row--drop-inside {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-purple-soft);
+}
+
 .chapter-list__drag-handle {
   flex: 0 0 auto;
   width: 24px;
@@ -130,6 +139,31 @@ injectStyleSheet('chapter-list-panel-organism-css', `
   color: var(--accent-purple);
   font-weight: 600;
 }
+
+/* #region Aninhamento (arrastar um capítulo em cima de outro) —
+   qualquer capítulo pode virar "pai" de outros, tipo camadas do Figma */
+.chapter-list__expand-toggle,
+.chapter-list__expand-spacer {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 32px;
+}
+
+.chapter-list__expand-toggle {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+/* filhos ganham recuo + uma guia vertical, como um ninho */
+.chapter-list__row--child {
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}
+/* #endregion */
 
 .chapter-list__item-menu-trigger {
   background: none;
@@ -276,6 +310,10 @@ export const chapterListPanelCss = {
   chapterListRowDragging: 'chapter-list__row--dragging',
   chapterListRowDropBefore: 'chapter-list__row--drop-before',
   chapterListRowDropAfter: 'chapter-list__row--drop-after',
+  chapterListRowDropInside: 'chapter-list__row--drop-inside',
+  chapterListRowChild: 'chapter-list__row--child',
+  chapterListExpandToggle: 'chapter-list__expand-toggle',
+  chapterListExpandSpacer: 'chapter-list__expand-spacer',
   chapterListDragHandle: 'chapter-list__drag-handle',
   chapterListItem: 'chapter-list__item',
   chapterListItemActive: 'chapter-list__item active',

@@ -1,9 +1,82 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent } from 'react'
-import { GripVertical, MoreVertical, Plus, Pencil, Trash2, FileText, Image as ImageIcon, Layers } from 'lucide-react'
+import {
+  GripVertical,
+  MoreVertical,
+  Plus,
+  Pencil,
+  Trash2,
+  FileText,
+  Image as ImageIcon,
+  Layers,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
-import type { ChapterPageType } from '@/types'
+import type { ChapterOrderUpdate } from '@/services/firestore/chapters'
+import type { Chapter, ChapterPageType } from '@/types'
 import { chapterListPanelCss } from './css'
+
+// Chave do localStorage que guarda quais capítulos-pai estão
+// recolhidos — é só uma conveniência visual por navegador, não
+// precisa ir pro Firestore (nada muda pra quem mais acessa o projeto).
+function collapsedChaptersStorageKey(projectId: string) {
+  return `maibook-collapsed-chapters:${projectId}`
+}
+
+// #region Árvore de capítulos (aninhamento tipo Figma)
+// Qualquer capítulo pode virar "pai" de outros — arrastando um em
+// cima do outro na lista. `order` é único só entre irmãos (mesmo
+// parentId), não um índice global: por isso a árvore inteira precisa
+// ser reconstruída (agrupar por parentId, ordenar cada grupo) toda
+// vez que a lista renderiza, em vez de só ordenar um array plano.
+interface ChapterTreeRow {
+  chapter: Chapter
+  depth: number
+  hasChildren: boolean
+}
+
+function buildChapterTree(chapters: Chapter[], collapsedIds: Set<string>): ChapterTreeRow[] {
+  const childrenByParent = new Map<string | undefined, Chapter[]>()
+  for (const chapter of chapters) {
+    const key = chapter.parentId ?? undefined
+    const siblings = childrenByParent.get(key)
+    if (siblings) siblings.push(chapter)
+    else childrenByParent.set(key, [chapter])
+  }
+  for (const siblings of childrenByParent.values()) siblings.sort((a, b) => a.order - b.order)
+
+  const rows: ChapterTreeRow[] = []
+
+  function visit(parentId: string | undefined, depth: number) {
+    for (const chapter of childrenByParent.get(parentId) ?? []) {
+      const children = childrenByParent.get(chapter.id) ?? []
+      rows.push({ chapter, depth, hasChildren: children.length > 0 })
+      if (children.length > 0 && !collapsedIds.has(chapter.id)) {
+        visit(chapter.id, depth + 1)
+      }
+    }
+  }
+
+  visit(undefined, 0)
+  return rows
+}
+
+// true se `chapterId` está dentro da subárvore de `ancestorId`
+// (usado pra não deixar soltar um capítulo dentro dele mesmo ou de
+// um dos seus próprios descendentes — isso criaria um ciclo)
+function isDescendantOf(chapterId: string, ancestorId: string, chapters: Chapter[]): boolean {
+  const byId = new Map(chapters.map((chapter) => [chapter.id, chapter]))
+  let current = byId.get(chapterId)
+  while (current?.parentId) {
+    if (current.parentId === ancestorId) return true
+    current = byId.get(current.parentId)
+  }
+  return false
+}
+// #endregion
+
+type DropPosition = 'before' | 'after' | 'inside'
 
 // Opções oferecidas ao criar um capítulo novo — ver ChapterPageType.
 const NEW_CHAPTER_OPTIONS: Array<{ pageType: ChapterPageType; label: string; hint: string; icon: typeof FileText }> = [
@@ -33,7 +106,7 @@ export function ChapterListPanel() {
   const [renameValue, setRenameValue] = useState('')
   const [draggedChapterId, setDraggedChapterId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
-  const [dropPosition, setDropPosition] = useState<'before' | 'after'>('before')
+  const [dropPosition, setDropPosition] = useState<DropPosition>('before')
   const [reordering, setReordering] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   // #endregion
@@ -58,6 +131,39 @@ export function ChapterListPanel() {
   function handleAddChapter(pageType: ChapterPageType) {
     setNewChapterMenuOpen(false)
     void addChapter(pageType)
+  }
+  // #endregion
+
+  // #region Capítulos-pai recolhidos — só uma preferência visual
+  // salva no localStorage, por projeto
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!currentProject) return
+    try {
+      const raw = localStorage.getItem(collapsedChaptersStorageKey(currentProject.id))
+      setCollapsedIds(raw ? new Set(JSON.parse(raw)) : new Set())
+    } catch {
+      setCollapsedIds(new Set())
+    }
+  }, [currentProject?.id])
+
+  useEffect(() => {
+    if (!currentProject) return
+    try {
+      localStorage.setItem(collapsedChaptersStorageKey(currentProject.id), JSON.stringify([...collapsedIds]))
+    } catch {
+      // localStorage indisponível (aba anônima, etc.) — não é crítico, ignora
+    }
+  }, [collapsedIds, currentProject?.id])
+
+  function toggleCollapsed(chapterId: string) {
+    setCollapsedIds((current) => {
+      const next = new Set(current)
+      if (next.has(chapterId)) next.delete(chapterId)
+      else next.add(chapterId)
+      return next
+    })
   }
   // #endregion
 
@@ -147,8 +253,10 @@ export function ChapterListPanel() {
   }
   // #endregion
 
-  const orderedChapters = chapters.slice().sort((a, b) => a.order - b.order)
+  const chapterRows = buildChapterTree(chapters, collapsedIds)
 
+  // #region Arrastar e soltar — reordena como irmão (antes/depois) ou
+  // aninha como filho (em cima), igual ao painel de camadas do Figma
   function handleDragStart(event: ReactDragEvent<HTMLButtonElement>, chapterId: string) {
     if (renamingId || reordering) {
       event.preventDefault()
@@ -162,11 +270,20 @@ export function ChapterListPanel() {
   }
 
   function handleDragOver(event: ReactDragEvent<HTMLLIElement>, chapterId: string) {
-    if (!draggedChapterId || draggedChapterId === chapterId) return
+    if (!draggedChapterId) return
+
+    // não deixa soltar em cima de si mesmo ou de um dos próprios
+    // descendentes — isso criaria um ciclo na árvore
+    if (chapterId === draggedChapterId || isDescendantOf(chapterId, draggedChapterId, chapters)) {
+      return
+    }
+
     event.preventDefault()
 
     const bounds = event.currentTarget.getBoundingClientRect()
-    const position = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after'
+    const ratio = (event.clientY - bounds.top) / bounds.height
+    const position: DropPosition = ratio < 0.25 ? 'before' : ratio > 0.75 ? 'after' : 'inside'
+
     setDropTargetId(chapterId)
     setDropPosition(position)
     event.dataTransfer.dropEffect = 'move'
@@ -175,28 +292,55 @@ export function ChapterListPanel() {
   async function handleDrop(event: ReactDragEvent<HTMLLIElement>, targetChapterId: string) {
     event.preventDefault()
     const sourceChapterId = draggedChapterId || event.dataTransfer.getData('text/plain')
-    if (!sourceChapterId || sourceChapterId === targetChapterId) {
-      resetDragState()
+    const position = dropTargetId === targetChapterId ? dropPosition : 'before'
+    resetDragState()
+
+    if (!sourceChapterId || sourceChapterId === targetChapterId) return
+
+    const source = chapters.find((chapter) => chapter.id === sourceChapterId)
+    const target = chapters.find((chapter) => chapter.id === targetChapterId)
+    if (!source || !target) return
+
+    // pra onde o capítulo arrastado vai: dentro do alvo (novo pai) ou
+    // como irmão dele (mesmo pai que o alvo)
+    const newParentId = position === 'inside' ? target.id : target.parentId
+
+    // trava de segurança: não deixa aninhar dentro de si mesmo ou de
+    // um descendente (o handleDragOver já evita isso, mas o
+    // dataTransfer pode vir de um estado diferente do state atual)
+    if (newParentId && (newParentId === sourceChapterId || isDescendantOf(newParentId, sourceChapterId, chapters))) {
       return
     }
 
-    const ids = orderedChapters.map((chapter) => chapter.id)
-    const sourceIndex = ids.indexOf(sourceChapterId)
-    const targetIndex = ids.indexOf(targetChapterId)
-    if (sourceIndex < 0 || targetIndex < 0) {
-      resetDragState()
-      return
-    }
+    const siblings = chapters
+      .filter((chapter) => chapter.id !== sourceChapterId && (chapter.parentId ?? undefined) === newParentId)
+      .sort((a, b) => a.order - b.order)
 
-    ids.splice(sourceIndex, 1)
-    const adjustedTargetIndex = ids.indexOf(targetChapterId)
-    const insertIndex = dropPosition === 'after' ? adjustedTargetIndex + 1 : adjustedTargetIndex
-    ids.splice(insertIndex, 0, sourceChapterId)
+    let insertIndex = siblings.length
+    if (position !== 'inside') {
+      const targetIndex = siblings.findIndex((chapter) => chapter.id === targetChapterId)
+      insertIndex = position === 'after' ? targetIndex + 1 : targetIndex
+    }
+    siblings.splice(insertIndex, 0, source)
+
+    const updates: ChapterOrderUpdate[] = siblings.map((chapter, index) => ({
+      id: chapter.id,
+      order: index + 1,
+      ...(chapter.id === sourceChapterId ? { parentId: newParentId ?? null } : {}),
+    }))
 
     setReordering(true)
-    resetDragState()
     try {
-      await reorderChapters(ids)
+      await reorderChapters(updates)
+      // expande o novo pai pra mostrar o capítulo recém-aninhado
+      if (position === 'inside') {
+        setCollapsedIds((current) => {
+          if (!current.has(target.id)) return current
+          const next = new Set(current)
+          next.delete(target.id)
+          return next
+        })
+      }
     } catch {
       window.alert('Não foi possível salvar a nova ordem dos capítulos.')
     } finally {
@@ -209,6 +353,7 @@ export function ChapterListPanel() {
     setDropTargetId(null)
     setDropPosition('before')
   }
+  // #endregion
 
   return (
     <aside className={chapterListPanelCss.panel + ' ' + chapterListPanelCss.chapterList}>
@@ -263,19 +408,25 @@ export function ChapterListPanel() {
       {/* #region Lista de capítulos */}
       <div className={chapterListPanelCss.chapterListSectionLabel}>Capítulos</div>
       <ul className={chapterListPanelCss.chapterListItems}>
-        {orderedChapters.map((chapter) => (
+        {chapterRows.map(({ chapter, depth, hasChildren }) => {
+          const isCollapsed = hasChildren && collapsedIds.has(chapter.id)
+          const isDropTarget = dropTargetId === chapter.id
+          const indentStyle = depth > 0 ? { marginLeft: depth * 14, paddingLeft: 10 } : undefined
+
+          return (
             <li
               key={chapter.id}
+              style={indentStyle}
               className={[
                 chapterListPanelCss.chapterListRow,
+                depth > 0 ? chapterListPanelCss.chapterListRowChild : '',
                 draggedChapterId === chapter.id ? chapterListPanelCss.chapterListRowDragging : '',
-                dropTargetId === chapter.id
-                  ? dropPosition === 'before'
-                    ? chapterListPanelCss.chapterListRowDropBefore
-                    : chapterListPanelCss.chapterListRowDropAfter
-                  : '',
+                isDropTarget && dropPosition === 'before' ? chapterListPanelCss.chapterListRowDropBefore : '',
+                isDropTarget && dropPosition === 'after' ? chapterListPanelCss.chapterListRowDropAfter : '',
+                isDropTarget && dropPosition === 'inside' ? chapterListPanelCss.chapterListRowDropInside : '',
               ].filter(Boolean).join(' ')}
               onDragOver={(event) => handleDragOver(event, chapter.id)}
+              onDragLeave={() => setDropTargetId((current) => (current === chapter.id ? null : current))}
               onDrop={(event) => void handleDrop(event, chapter.id)}
             >
               {renamingId === chapter.id ? (
@@ -294,6 +445,21 @@ export function ChapterListPanel() {
                 // #endregion
               ) : (
                 <>
+                  {/* capítulos com filhos ganham um chevron pra recolher/expandir */}
+                  {hasChildren ? (
+                    <button
+                      className={chapterListPanelCss.chapterListExpandToggle}
+                      type="button"
+                      onClick={() => toggleCollapsed(chapter.id)}
+                      aria-label={isCollapsed ? `Expandir ${chapter.title}` : `Recolher ${chapter.title}`}
+                      aria-expanded={!isCollapsed}
+                    >
+                      {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                  ) : (
+                    <span className={chapterListPanelCss.chapterListExpandSpacer} />
+                  )}
+
                   <button
                     className={chapterListPanelCss.chapterListDragHandle}
                     type="button"
@@ -301,7 +467,7 @@ export function ChapterListPanel() {
                     onDragStart={(event) => handleDragStart(event, chapter.id)}
                     onDragEnd={resetDragState}
                     aria-label={`Arrastar ${chapter.title}`}
-                    title="Arraste para reorganizar"
+                    title="Arraste para reorganizar (solte em cima de outro capítulo para aninhar)"
                   >
                     <GripVertical size={15} />
                   </button>
@@ -345,7 +511,8 @@ export function ChapterListPanel() {
                 </>
               )}
             </li>
-          ))}
+          )
+        })}
       </ul>
       {/* #endregion */}
 
