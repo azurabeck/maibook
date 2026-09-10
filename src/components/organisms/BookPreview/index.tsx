@@ -3,6 +3,7 @@ import { BookOpen, Download, LoaderCircle, X } from 'lucide-react'
 import type { Chapter, ChapterFooter, ChapterGrid, FooterPosition } from '@/types'
 import { getPageFormat } from '@/constants/pageFormats'
 import { HeaderPreview } from '@/components/organisms/ChapterHeader/index'
+import { sortChaptersForReading } from '@/utils/chapterTree'
 import { bookPreviewCss } from './css'
 
 interface BookPreviewProps {
@@ -264,7 +265,11 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
   const [paginating, setPaginating] = useState(false)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const bookRef = useRef<HTMLDivElement>(null)
-  const orderedChapters = useMemo(() => [...chapters].sort((a, b) => a.order - b.order), [chapters])
+  // Ordem de leitura do livro: capítulo-pai seguido de seus filhos
+  // (aninhados via drag-and-drop na lista lateral), não um simples
+  // sort por `order` — esse campo só é único entre irmãos, não global
+  // (ver src/utils/chapterTree.ts).
+  const orderedChapters = useMemo(() => sortChaptersForReading(chapters), [chapters])
 
   useEffect(() => {
     if (!open) return

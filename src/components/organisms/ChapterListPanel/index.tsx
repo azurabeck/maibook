@@ -15,6 +15,7 @@ import {
 import { useProjectStore } from '@/store/useProjectStore'
 import type { ChapterOrderUpdate } from '@/services/firestore/chapters'
 import type { Chapter, ChapterPageType } from '@/types'
+import { groupChaptersByParent } from '@/utils/chapterTree'
 import { chapterListPanelCss } from './css'
 
 // Chave do localStorage que guarda quais capítulos-pai estão
@@ -37,15 +38,7 @@ interface ChapterTreeRow {
 }
 
 function buildChapterTree(chapters: Chapter[], collapsedIds: Set<string>): ChapterTreeRow[] {
-  const childrenByParent = new Map<string | undefined, Chapter[]>()
-  for (const chapter of chapters) {
-    const key = chapter.parentId ?? undefined
-    const siblings = childrenByParent.get(key)
-    if (siblings) siblings.push(chapter)
-    else childrenByParent.set(key, [chapter])
-  }
-  for (const siblings of childrenByParent.values()) siblings.sort((a, b) => a.order - b.order)
-
+  const childrenByParent = groupChaptersByParent(chapters)
   const rows: ChapterTreeRow[] = []
 
   function visit(parentId: string | undefined, depth: number) {
