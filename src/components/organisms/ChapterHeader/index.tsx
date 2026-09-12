@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Image as ImageIcon, PanelTop, RefreshCw, Trash2, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Image as ImageIcon, PanelTop, RefreshCw, Trash2, X } from 'lucide-react'
 import type { ChapterHeader as ChapterHeaderValue, HeaderStructure, HeaderStructureDraft } from '@/types'
 import { subscribeToHeaderStructures } from '@/services/firestore/headerStructures'
 import { chapterHeaderCss } from './css'
@@ -107,6 +107,9 @@ export function ChapterHeader({ projectId, value, onChange }: ChapterHeaderProps
   const [modalOpen, setModalOpen] = useState(false)
   const [structures, setStructures] = useState<HeaderStructure[]>([])
   const [loading, setLoading] = useState(false)
+  // recolhe só a prévia visual (canvas) pra sobrar espaço de leitura —
+  // a barra com o nome do modelo e as ações continua sempre visível
+  const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
     if (!modalOpen) return
@@ -133,14 +136,26 @@ export function ChapterHeader({ projectId, value, onChange }: ChapterHeaderProps
           <div className={chapterHeaderCss.topbar}>
             <div><span className={chapterHeaderCss.eyebrow}>Cabeçalho do capítulo</span><strong className={chapterHeaderCss.modelName}>{value.sourceStructureName}</strong></div>
             <div className={chapterHeaderCss.actions}>
+              <button
+                type="button"
+                onClick={() => setCollapsed((current) => !current)}
+                title={collapsed ? 'Mostrar cabeçalho' : 'Esconder cabeçalho'}
+                aria-expanded={!collapsed}
+              >
+                {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+              </button>
               <button type="button" onClick={() => setModalOpen(true)}><RefreshCw size={14} /> Trocar</button>
               <button className={chapterHeaderCss.removeButton} type="button" onClick={() => onChange(null)}><Trash2 size={14} /> Remover</button>
             </div>
           </div>
-          <div className={chapterHeaderCss.canvas}>
-            <HeaderPreview structure={value} editable onTextChange={updateText} />
-          </div>
-          <p className={chapterHeaderCss.hint}>Neste capítulo, apenas os textos do modelo podem ser alterados.</p>
+          {!collapsed && (
+            <>
+              <div className={chapterHeaderCss.canvas}>
+                <HeaderPreview structure={value} editable onTextChange={updateText} />
+              </div>
+              <p className={chapterHeaderCss.hint}>Neste capítulo, apenas os textos do modelo podem ser alterados.</p>
+            </>
+          )}
         </section>
       )}
 

@@ -15,6 +15,14 @@ injectStyleSheet('chapters-page-css', `
   overflow-y: auto;
 }
 
+/* Modo de foco: só o editor, ocupando a linha toda (a classe base
+   ".chapters-page" continua aplicada junto — o seletor combinado
+   abaixo garante prioridade mesmo dentro dos media queries de
+   telas menores, que também mexem em grid-template-columns) */
+.chapters-page.chapters-page--focus {
+  grid-template-columns: 1fr;
+}
+
 /* #region Abas mobile (só um bloco por vez) */
 /* No desktop essa nav nem aparece, e cada "cell" vira "contents" —
    ou seja, some da árvore de caixas e quem vira item do grid é o
@@ -97,6 +105,7 @@ injectStyleSheet('chapters-page-css', `
 
 export const chaptersPageCss = {
   root: 'chapters-page',
+  rootFocus: 'chapters-page chapters-page--focus',
   mobileTabs: 'chapters-page__mobile-tabs',
   mobileTab: 'chapters-page__mobile-tab',
   mobileTabActive: 'chapters-page__mobile-tab chapters-page__mobile-tab--active',

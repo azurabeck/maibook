@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Navigate, Outlet, useParams } from 'react-router-dom'
 import { TopNav } from '@/components/organisms/TopNav/index'
 import { useProjectStore } from '@/store/useProjectStore'
+import { useUiStore } from '@/store/useUiStore'
 import { projectLayoutCss } from './css'
 
 // Template: estrutura de qualquer página dentro de um projeto —
@@ -19,6 +20,8 @@ export function ProjectLayout() {
   const loadProject = useProjectStore((state) => state.loadProject)
   const unloadProject = useProjectStore((state) => state.unloadProject)
   const projectStatus = useProjectStore((state) => state.projectStatus)
+  // modo de foco: some com o cabeçalho pra sobrar mais espaço de leitura
+  const focusMode = useUiStore((state) => state.focusMode)
 
   useEffect(() => {
     if (!projectId) return
@@ -38,8 +41,8 @@ export function ProjectLayout() {
 
   return (
     <div className={projectLayoutCss.projectLayout}>
-      <TopNav />
-      <main className={projectLayoutCss.projectLayoutContent}>
+      {!focusMode && <TopNav />}
+      <main className={focusMode ? projectLayoutCss.projectLayoutContentFocus : projectLayoutCss.projectLayoutContent}>
         {projectStatus === 'loading' || projectStatus === 'idle' ? (
           <div className={projectLayoutCss.projectLayoutLoading}>Carregando projeto...</div>
         ) : (

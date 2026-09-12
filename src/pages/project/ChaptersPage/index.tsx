@@ -4,6 +4,7 @@ import { ChapterListPanel } from '@/components/organisms/ChapterListPanel/index'
 import { EditorPanel } from '@/components/organisms/EditorPanel/index'
 import { CopilotPanel } from '@/components/organisms/CopilotPanel/index'
 import { OverviewPanel } from '@/components/organisms/OverviewPanel/index'
+import { useUiStore } from '@/store/useUiStore'
 import { chaptersPageCss as css } from './css'
 
 type MobilePanel = 'chapters' | 'editor' | 'copiloto' | 'overview'
@@ -26,35 +27,47 @@ const MOBILE_TABS: Array<{ id: MobilePanel; label: string; icon: typeof List }> 
 // lado como sempre (ver o media query em css.ts).
 export function ChaptersPage() {
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>('editor')
+  // modo de foco: some com os painéis ao redor (capítulos, copiloto,
+  // visão geral) e deixa só o editor, pra quem quer mais espaço de
+  // leitura enquanto escreve — ver botão no cabeçalho do EditorPanel.
+  const focusMode = useUiStore((state) => state.focusMode)
 
   return (
-    <div className={css.root}>
-      <nav className={css.mobileTabs} aria-label="Painel ativo">
-        {MOBILE_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={mobilePanel === tab.id ? css.mobileTabActive : css.mobileTab}
-            onClick={() => setMobilePanel(tab.id)}
-          >
-            <tab.icon size={15} />
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+    <div className={focusMode ? css.rootFocus : css.root}>
+      {!focusMode && (
+        <nav className={css.mobileTabs} aria-label="Painel ativo">
+          {MOBILE_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={mobilePanel === tab.id ? css.mobileTabActive : css.mobileTab}
+              onClick={() => setMobilePanel(tab.id)}
+            >
+              <tab.icon size={15} />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
 
-      <div className={mobilePanel === 'chapters' ? css.cellActive : css.cell}>
-        <ChapterListPanel />
-      </div>
-      <div className={mobilePanel === 'editor' ? css.cellActive : css.cell}>
+      {!focusMode && (
+        <div className={mobilePanel === 'chapters' ? css.cellActive : css.cell}>
+          <ChapterListPanel />
+        </div>
+      )}
+      <div className={focusMode || mobilePanel === 'editor' ? css.cellActive : css.cell}>
         <EditorPanel />
       </div>
-      <div className={mobilePanel === 'copiloto' ? css.cellActive : css.cell}>
-        <CopilotPanel />
-      </div>
-      <div className={mobilePanel === 'overview' ? css.cellActive : css.cell}>
-        <OverviewPanel />
-      </div>
+      {!focusMode && (
+        <div className={mobilePanel === 'copiloto' ? css.cellActive : css.cell}>
+          <CopilotPanel />
+        </div>
+      )}
+      {!focusMode && (
+        <div className={mobilePanel === 'overview' ? css.cellActive : css.cell}>
+          <OverviewPanel />
+        </div>
+      )}
     </div>
   )
 }

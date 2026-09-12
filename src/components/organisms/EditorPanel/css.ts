@@ -5,11 +5,17 @@ injectStyleSheet('editor-panel-organism-css', `
 .editor-panel--empty{align-items:center;justify-content:center;color:var(--text-secondary)}
 .editor-panel__header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex:0 0 auto;padding-bottom:12px;border-bottom:1px solid var(--border)}
 .editor-panel__title-row{display:flex;align-items:baseline;gap:10px;min-width:0}.editor-panel__title-row h2{margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.editor-panel__header-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
 .editor-panel__saved{flex:0 0 auto;font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px}.editor-panel__saved .dot{width:6px;height:6px;border-radius:50%;background:#4caf6d}
 /* Linha de ações "de verdade" do capítulo — fica embaixo do
    cabeçalho (no lugar onde antes ficava a barra de formatação só
    decorativa) e quebra linha em telas menores em vez de cortar. */
 .editor-panel__actions-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:0 0 auto;padding:10px 0;border-bottom:1px solid var(--border)}
+/* #region Recolher a linha de ferramentas (grid, footer, IA, etc.) */
+.editor-panel__actions-toggle-row{display:flex;flex:0 0 auto;border-bottom:1px solid var(--border)}
+.editor-panel__actions-toggle{display:inline-flex;align-items:center;gap:6px;padding:6px 2px;margin:2px 0;border:none;border-radius:6px;background:transparent;color:var(--text-muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+.editor-panel__actions-toggle:hover{color:var(--accent-purple)}
+/* #endregion */
 .editor-panel__canvas{display:flex;flex-direction:column;flex:1 1 0;min-height:0;overflow:hidden;border-radius:10px}
 .editor-panel__textarea{display:block;width:100%;height:100%;min-height:0;flex:1;border:none;outline:none;resize:none;overflow-y:auto;background:transparent;color:var(--text-primary);font-size:15px;line-height:1.7;padding:20px 4px;box-sizing:border-box;font-family:inherit}
 .editor-panel__footer{flex:0 0 auto;font-size:12px;color:var(--text-secondary);padding-top:8px;border-top:1px solid var(--border)}
@@ -64,7 +70,7 @@ injectStyleSheet('editor-panel-organism-css', `
 `)
 
 export const editorPanelCss = {
-  panel:'panel', editorPanel:'editor-panel', editorPanelEmpty:'editor-panel--empty', editorPanelHeader:'editor-panel__header', editorPanelTitleRow:'editor-panel__title-row', editorPanelSaved:'editor-panel__saved', dot:'dot', editorPanelActionsRow:'editor-panel__actions-row', editorCanvas:'editor-panel__canvas', editorCanvasGrid:'editor-panel__canvas', editorPage:'', editorPageGrid:'', gridNotice:'', editorPanelTextarea:'editor-panel__textarea', editorPanelFooter:'editor-panel__footer',
+  panel:'panel', editorPanel:'editor-panel', editorPanelEmpty:'editor-panel--empty', editorPanelHeader:'editor-panel__header', editorPanelHeaderActions:'editor-panel__header-actions', editorPanelTitleRow:'editor-panel__title-row', editorPanelSaved:'editor-panel__saved', dot:'dot', editorPanelActionsRow:'editor-panel__actions-row', actionsToggleRow:'editor-panel__actions-toggle-row', actionsToggle:'editor-panel__actions-toggle', editorCanvas:'editor-panel__canvas', editorCanvasGrid:'editor-panel__canvas', editorPage:'', editorPageGrid:'', gridNotice:'', editorPanelTextarea:'editor-panel__textarea', editorPanelFooter:'editor-panel__footer',
   pageTypeSwitch:'editor-panel__page-type-switch', pageTypeButton:'page-type-button', pageTypeButtonActive:'page-type-button--active',
   searchToggle:'editor-panel__search-toggle', searchToggleActive:'editor-panel__search-toggle--active',
   searchBar:'editor-panel__search-bar', searchBarIcon:'editor-panel__search-bar-icon', searchBarInput:'editor-panel__search-bar-input', searchBarCount:'editor-panel__search-bar-count',

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Download, LoaderCircle, X } from 'lucide-react'
+import { BookOpen, Download, FileText, LoaderCircle, X } from 'lucide-react'
 import type { Chapter, ChapterFooter, ChapterGrid, FooterPosition } from '@/types'
 import { getPageFormat } from '@/constants/pageFormats'
 import { HeaderPreview } from '@/components/organisms/ChapterHeader/index'
 import { sortChaptersForReading } from '@/utils/chapterTree'
+import { downloadBlob, generateBookDocxBlob } from '@/services/export/docx'
 import { bookPreviewCss } from './css'
 
 interface BookPreviewProps {
@@ -68,6 +69,15 @@ function FooterPreview({ footer, chapterTitle, pageNumber }: { footer: ChapterFo
       ))}
     </div>
   )
+}
+
+function safeFileName(bookTitle: string | undefined): string {
+  return (bookTitle || 'livro')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9-_]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || 'livro'
 }
 
 function splitParagraphs(content: string): string[] {
@@ -264,6 +274,7 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
   const [pages, setPages] = useState<PreviewPage[]>([])
   const [paginating, setPaginating] = useState(false)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [downloadingDocx, setDownloadingDocx] = useState(false)
   const bookRef = useRef<HTMLDivElement>(null)
   // Ordem de leitura do livro: capítulo-pai seguido de seus filhos
   // (aninhados via drag-and-drop na lista lateral), não um simples
@@ -326,19 +337,31 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
         pdf.addImage(image, 'JPEG', 0, 0, page.width, page.height, undefined, 'FAST')
       }
 
-      const safeTitle = (bookTitle || 'livro')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9-_]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .toLowerCase() || 'livro'
-
-      pdf?.save(`${safeTitle}.pdf`)
+      pdf?.save(`${safeFileName(bookTitle)}.pdf`)
     } catch (error) {
       console.error('Falha ao gerar PDF:', error)
       window.alert('Não foi possível gerar o PDF. Tente novamente.')
     } finally {
       setDownloadingPdf(false)
+    }
+  }
+
+  // Além do PDF (só leitura), gera o livro num .docx editável — pra
+  // quem quer continuar mexendo no texto em outro programa (Word,
+  // LibreOffice, Google Docs...). Não depende da paginação calculada
+  // acima: lê os capítulos direto e monta o documento do zero.
+  async function downloadDocx() {
+    if (downloadingDocx) return
+
+    setDownloadingDocx(true)
+    try {
+      const blob = await generateBookDocxBlob(orderedChapters, bookTitle)
+      downloadBlob(blob, `${safeFileName(bookTitle)}.docx`)
+    } catch (error) {
+      console.error('Falha ao gerar DOCX:', error)
+      window.alert('Não foi possível gerar o arquivo editável. Tente novamente.')
+    } finally {
+      setDownloadingDocx(false)
     }
   }
 
@@ -366,6 +389,16 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
               >
                 {downloadingPdf ? <LoaderCircle className={bookPreviewCss.spinner} size={16} /> : <Download size={16} />}
                 <span>{downloadingPdf ? 'Gerando PDF...' : 'Baixar PDF'}</span>
+              </button>
+              <button
+                className={bookPreviewCss.download}
+                type="button"
+                onClick={() => void downloadDocx()}
+                disabled={!orderedChapters.length || downloadingDocx}
+                title="Baixar livro em DOCX (arquivo editável no Word, LibreOffice, Google Docs...)"
+              >
+                {downloadingDocx ? <LoaderCircle className={bookPreviewCss.spinner} size={16} /> : <FileText size={16} />}
+                <span>{downloadingDocx ? 'Gerando DOCX...' : 'Baixar DOCX'}</span>
               </button>
               <button className={bookPreviewCss.close} type="button" onClick={() => setOpen(false)} aria-label="Fechar visualização"><X size={18} /></button>
             </div>

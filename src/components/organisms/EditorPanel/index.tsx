@@ -9,8 +9,11 @@ import {
   FileText,
   Layers,
   Trash2,
+  Minimize2,
+  Maximize2,
 } from 'lucide-react'
 import { useProjectStore } from '@/store/useProjectStore'
+import { useUiStore } from '@/store/useUiStore'
 import { ChapterHeader } from '@/components/organisms/ChapterHeader/index'
 import { ChapterGridSelector } from '@/components/organisms/ChapterGridSelector/index'
 import { ChapterFooterSelector } from '@/components/organisms/ChapterFooterSelector/index'
@@ -167,7 +170,13 @@ export function EditorPanel() {
   // trocarmos por um editor rico de verdade (Tiptap/Lexical).
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [matchIndex, setMatchIndex] = useState(0)
+  // -1 = ainda não navegou pra nenhuma ocorrência (só contando).
+  // Importante: navegar (selectMatch) foca o <textarea> do conteúdo,
+  // então só pode acontecer quando a pessoa pede explicitamente
+  // (Enter ou os botões de próximo/anterior) — nunca a cada tecla
+  // digitada na busca, senão o foco pula do campo de busca pro texto
+  // no meio da digitação e as próximas teclas se perdem.
+  const [matchIndex, setMatchIndex] = useState(-1)
 
   const searchMatches = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -195,16 +204,17 @@ export function EditorPanel() {
     scrollTextareaToIndex(textarea, match.start)
   }
 
-  // ao digitar uma nova busca, volta pro primeiro resultado
+  // ao digitar uma nova busca, só reseta a contagem — não navega até
+  // o texto (ver comentário acima), deixa a pessoa terminar de digitar
   useEffect(() => {
-    setMatchIndex(0)
-    if (searchMatches.length) selectMatch(0)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setMatchIndex(-1)
   }, [searchQuery])
 
   function goToMatch(step: 1 | -1) {
     if (!searchMatches.length) return
-    const next = (matchIndex + step + searchMatches.length) % searchMatches.length
+    const next = matchIndex === -1
+      ? (step === 1 ? 0 : searchMatches.length - 1)
+      : (matchIndex + step + searchMatches.length) % searchMatches.length
     setMatchIndex(next)
     selectMatch(next)
   }
@@ -212,7 +222,7 @@ export function EditorPanel() {
   function closeSearch() {
     setSearchOpen(false)
     setSearchQuery('')
-    setMatchIndex(0)
+    setMatchIndex(-1)
   }
 
   function toggleSearch() {
@@ -220,12 +230,21 @@ export function EditorPanel() {
       const next = !current
       if (!next) {
         setSearchQuery('')
-        setMatchIndex(0)
+        setMatchIndex(-1)
       }
       return next
     })
   }
   // #endregion
+
+  // #region Modo de foco (esconde cabeçalho e painéis ao redor)
+  const focusMode = useUiStore((state) => state.focusMode)
+  const toggleFocusMode = useUiStore((state) => state.toggleFocusMode)
+  // #endregion
+
+  // recolhe a linha de ferramentas do capítulo (grid, rodapé, IA,
+  // visualizar livro) pra sobrar mais espaço de leitura do texto
+  const [toolsCollapsed, setToolsCollapsed] = useState(false)
 
   // conta palavras a partir do texto (separa por espaços em branco)
   const wordCount = activeChapter?.content.trim()
@@ -255,16 +274,27 @@ export function EditorPanel() {
           </span>
         </div>
 
-        {!isFullImagePage && (
+        <div className={editorPanelCss.editorPanelHeaderActions}>
+          {!isFullImagePage && (
+            <button
+              className={searchOpen ? editorPanelCss.searchToggleActive : editorPanelCss.searchToggle}
+              type="button"
+              onClick={toggleSearch}
+              title="Buscar no texto"
+            >
+              <Search size={15} /> <span>Buscar</span>
+            </button>
+          )}
           <button
-            className={searchOpen ? editorPanelCss.searchToggleActive : editorPanelCss.searchToggle}
+            className={focusMode ? editorPanelCss.searchToggleActive : editorPanelCss.searchToggle}
             type="button"
-            onClick={toggleSearch}
-            title="Buscar no texto"
+            onClick={toggleFocusMode}
+            title={focusMode ? 'Sair do modo de foco' : 'Modo de foco: esconder menus e cabeçalho'}
           >
-            <Search size={15} /> <span>Buscar</span>
+            {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            <span>{focusMode ? 'Sair do foco' : 'Modo de foco'}</span>
           </button>
-        )}
+        </div>
       </div>
       {/* #endregion */}
 
@@ -285,7 +315,13 @@ export function EditorPanel() {
             }}
           />
           <span className={editorPanelCss.searchBarCount}>
-            {searchQuery.trim() ? (searchMatches.length ? `${matchIndex + 1} de ${searchMatches.length}` : 'Nenhum resultado') : ''}
+            {searchQuery.trim()
+              ? (searchMatches.length
+                ? (matchIndex === -1
+                  ? `${searchMatches.length} resultado${searchMatches.length === 1 ? '' : 's'}`
+                  : `${matchIndex + 1} de ${searchMatches.length}`)
+                : 'Nenhum resultado')
+              : ''}
           </span>
           <button type="button" onClick={() => goToMatch(-1)} disabled={!searchMatches.length} title="Anterior (Shift+Enter)">
             <ChevronUp size={16} />
@@ -301,41 +337,56 @@ export function EditorPanel() {
       {/* #endregion */}
 
       {/* #region Ações do capítulo (grid, footer, cabeçalho, IA, visualizar livro) */}
-      <div className={editorPanelCss.editorPanelActionsRow}>
-        <PageTypeSwitch value={pageType} onChange={(newPageType) => void updateChapterPageType(activeChapter.id, newPageType)} />
-
-        {!isFullImagePage && currentProject && (
-          <ChapterGridSelector
-            projectId={currentProject.id}
-            currentGrid={activeChapter.grid}
-            onApplyCurrent={(selectedGrid) => updateChapterGrid(activeChapter.id, selectedGrid)}
-            onApplyAll={updateAllChaptersGrid}
-          />
-        )}
-        {!isFullImagePage && currentProject && (
-          <ChapterFooterSelector
-            projectId={currentProject.id}
-            currentFooter={activeChapter.footer}
-            onApplyCurrent={(selectedFooter) => updateChapterFooter(activeChapter.id, selectedFooter)}
-            onApplyAll={updateAllChaptersFooter}
-          />
-        )}
-        {!isFullImagePage && (
-          <GrammarCheckModal
-            key={`grammar-${activeChapter.id}`}
-            content={activeChapter.content}
-            onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
-          />
-        )}
-        {!isFullImagePage && (
-          <DialogueSuggestModal
-            key={`dialogue-${activeChapter.id}`}
-            content={activeChapter.content}
-            onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
-          />
-        )}
-        <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} />
+      <div className={editorPanelCss.actionsToggleRow}>
+        <button
+          type="button"
+          className={editorPanelCss.actionsToggle}
+          onClick={() => setToolsCollapsed((current) => !current)}
+          title={toolsCollapsed ? 'Mostrar ferramentas do capítulo' : 'Esconder ferramentas do capítulo'}
+          aria-expanded={!toolsCollapsed}
+        >
+          {toolsCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+          <span>Ferramentas do capítulo</span>
+        </button>
       </div>
+
+      {!toolsCollapsed && (
+        <div className={editorPanelCss.editorPanelActionsRow}>
+          <PageTypeSwitch value={pageType} onChange={(newPageType) => void updateChapterPageType(activeChapter.id, newPageType)} />
+
+          {!isFullImagePage && currentProject && (
+            <ChapterGridSelector
+              projectId={currentProject.id}
+              currentGrid={activeChapter.grid}
+              onApplyCurrent={(selectedGrid) => updateChapterGrid(activeChapter.id, selectedGrid)}
+              onApplyAll={updateAllChaptersGrid}
+            />
+          )}
+          {!isFullImagePage && currentProject && (
+            <ChapterFooterSelector
+              projectId={currentProject.id}
+              currentFooter={activeChapter.footer}
+              onApplyCurrent={(selectedFooter) => updateChapterFooter(activeChapter.id, selectedFooter)}
+              onApplyAll={updateAllChaptersFooter}
+            />
+          )}
+          {!isFullImagePage && (
+            <GrammarCheckModal
+              key={`grammar-${activeChapter.id}`}
+              content={activeChapter.content}
+              onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
+            />
+          )}
+          {!isFullImagePage && (
+            <DialogueSuggestModal
+              key={`dialogue-${activeChapter.id}`}
+              content={activeChapter.content}
+              onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
+            />
+          )}
+          <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} />
+        </div>
+      )}
       {/* #endregion */}
 
       {!isFullImagePage && currentProject && (
