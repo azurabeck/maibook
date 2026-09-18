@@ -52,3 +52,22 @@ export function sortChaptersForReading<T extends ChapterLike>(chapters: T[]): T[
   visit(undefined)
   return ordered
 }
+
+// Nível de aninhamento de um capítulo (0 = raiz, 1 = filho direto,
+// etc.) — usado pra recuar sub-capítulos no sumário. `visited` evita
+// loop infinito no caso (não deveria acontecer, mas por segurança) de
+// um parentId apontar pra um ciclo.
+export function chapterDepth<T extends ChapterLike>(chapter: T, chapters: T[]): number {
+  const byId = new Map(chapters.map((item) => [item.id, item]))
+  const visited = new Set<string>()
+  let depth = 0
+  let current: T | undefined = chapter
+
+  while (current?.parentId && !visited.has(current.id)) {
+    visited.add(current.id)
+    current = byId.get(current.parentId)
+    depth++
+  }
+
+  return depth
+}

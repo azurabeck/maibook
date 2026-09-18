@@ -38,6 +38,10 @@ export async function uploadWorldMapImage(projectId: string, file: File) {
   return uploadImageTo(`projects/${projectId}/world-map.${extensionOf(file)}`, file)
 }
 
+export async function uploadCoverImage(projectId: string, file: File) {
+  return uploadImageTo(`projects/${projectId}/cover.${extensionOf(file)}`, file)
+}
+
 export async function uploadLocationImage(projectId: string, locationId: string, file: File) {
   return uploadImageTo(`projects/${projectId}/locations/${locationId}/image.${extensionOf(file)}`, file)
 }

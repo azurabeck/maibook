@@ -1,16 +1,34 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Download, FileText, LoaderCircle, X } from 'lucide-react'
-import type { Chapter, ChapterFooter, ChapterGrid, FooterPosition } from '@/types'
+import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { BookOpen, FileText, LoaderCircle, Printer, X } from 'lucide-react'
+import type { BookCover, BookSummary, Chapter, ChapterFooter, ChapterGrid, FooterPosition } from '@/types'
 import { getPageFormat } from '@/constants/pageFormats'
 import { HeaderPreview } from '@/components/organisms/ChapterHeader/index'
-import { sortChaptersForReading } from '@/utils/chapterTree'
+import { BookSummaryView } from '@/components/organisms/BookSummaryView/index'
+import type { SummaryEntry } from '@/components/organisms/BookSummaryView/index'
+import { chapterDepth, sortChaptersForReading } from '@/utils/chapterTree'
 import { downloadBlob, generateBookDocxBlob } from '@/services/export/docx'
+import {
+  HEADER_CONTENT_GAP_MM,
+  MM_TO_PX,
+  PT_TO_PX,
+  estimateHeaderHeightPx,
+  getFooterReserveMm,
+  safeFileName,
+  splitParagraphs,
+} from '@/services/export/layout'
 import { bookPreviewCss } from './css'
 
 interface BookPreviewProps {
   chapters: Chapter[]
   activeChapterId: string | null
   bookTitle?: string
+  cover?: BookCover
+  summary?: BookSummary
+}
+
+function hasCoverContent(cover?: BookCover): cover is BookCover {
+  return Boolean(cover && (cover.imageUrl || cover.title || cover.subtitle))
 }
 
 interface PageParagraph {
@@ -31,16 +49,16 @@ interface PreviewPage {
   backgroundImageUrl?: string // pageType 'background': imagem atrás do texto desta página
 }
 
-const MM_TO_PX = 96 / 25.4
-const PT_TO_PX = 96 / 72
-const DEFAULT_FOOTER_RESERVE_MM = 9
-const HEADER_CONTENT_GAP_MM = 6
-
-function getFooterReserveMm(footer?: ChapterFooter) {
-  if (!footer) return DEFAULT_FOOTER_RESERVE_MM
-  const textHeightMm = footer.fontSize * 0.3528 * 1.4
-  const spacingMm = footer.spacingTop / MM_TO_PX
-  return Math.max(DEFAULT_FOOTER_RESERVE_MM, textHeightMm + spacingMm + 5)
+// Uma "fatia" do sumário que cabe numa página — o sumário sempre
+// começa na primeira página (título + texto antes), mas se a lista de
+// capítulos for grande, continua em quantas páginas forem precisas,
+// só com os itens (sem repetir título/texto antes); o texto depois só
+// entra na última, se sobrar espaço.
+interface SummaryPageData {
+  entries: SummaryEntry[]
+  showTitle: boolean
+  showTextBefore: boolean
+  showTextAfter: boolean
 }
 
 function FooterPreview({ footer, chapterTitle, pageNumber }: { footer: ChapterFooter; chapterTitle: string; pageNumber: number }) {
@@ -69,40 +87,6 @@ function FooterPreview({ footer, chapterTitle, pageNumber }: { footer: ChapterFo
       ))}
     </div>
   )
-}
-
-function safeFileName(bookTitle: string | undefined): string {
-  return (bookTitle || 'livro')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-zA-Z0-9-_]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase() || 'livro'
-}
-
-function splitParagraphs(content: string): string[] {
-  return content
-    .replace(/\r\n/g, '\n')
-    .split(/\n+/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-}
-
-function estimateHeaderHeightPx(chapter: Chapter): number {
-  const header = chapter.header
-  if (!header) return 0
-
-  const hasImage = header.layout === 'image-text' || header.layout === 'image-only'
-  const hasPrimaryText = header.layout !== 'image-only'
-  const hasSecondaryText = header.layout === 'text-text'
-  const visibleRows = Number(hasImage) + Number(hasPrimaryText) + Number(hasSecondaryText)
-  const gaps = Math.max(0, visibleRows - 1) * header.rowGap
-  const imageHeight = hasImage ? header.imageHeight : 0
-  const primaryHeight = hasPrimaryText ? header.fontSize * 1.25 + header.textStartSpacing : 0
-  const secondaryHeight = hasSecondaryText ? header.secondaryFontSize * 1.25 : 0
-  const borders = (header.borderTop ? 9 : 0) + (header.borderBottom ? 9 : 0)
-
-  return imageHeight + primaryHeight + secondaryHeight + gaps + borders
 }
 
 function createMeasureBox(grid: ChapterGrid | undefined, widthPx: number, heightPx: number) {
@@ -269,81 +253,212 @@ function paginateChapter(chapter: Chapter): PreviewPage[] {
   return pages
 }
 
-export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPreviewProps) {
+// Mede, numa caixa escondida fora da tela, a altura real (com a fonte
+// escolhida) de cada bloco do sumário — título, texto antes/depois e
+// uma linha de item — pra saber quantos itens cabem por página. Cada
+// item do sumário nunca quebra linha (ver BookSummaryView), então a
+// altura de uma única linha de teste já representa a de qualquer item.
+function measureSummaryMetrics(summary: BookSummary, contentWidthPx: number) {
+  const container = document.createElement('div')
+  container.style.position = 'fixed'
+  container.style.left = '-100000px'
+  container.style.top = '0'
+  container.style.width = `${contentWidthPx}px`
+  container.style.visibility = 'hidden'
+  container.style.fontFamily = summary.fontFamily
+  document.body.appendChild(container)
+
+  // getBoundingClientRect() não inclui margin — mas é exatamente a
+  // margem (marginBottom dos títulos/parágrafos/linhas) que separa um
+  // bloco do próximo no fluxo normal, então sem somá-la aqui o cálculo
+  // de quantas linhas cabem por página fica otimista e a lista acaba
+  // sendo cortada (overflow:hidden na página) antes de realmente
+  // acabar — sempre incluir a margem é o que faz cada bloco medido
+  // representar o espaço vertical que ele realmente ocupa.
+  function measure(build: () => HTMLElement) {
+    const element = build()
+    container.appendChild(element)
+    const rect = element.getBoundingClientRect()
+    const style = window.getComputedStyle(element)
+    const height = rect.height + parseFloat(style.marginTop || '0') + parseFloat(style.marginBottom || '0')
+    container.removeChild(element)
+    return height
+  }
+
+  const titleHeight = measure(() => {
+    const heading = document.createElement('h2')
+    heading.style.margin = '0 0 14px'
+    heading.style.fontSize = '20px'
+    heading.style.letterSpacing = '.02em'
+    heading.textContent = summary.title || ' '
+    return heading
+  })
+
+  const textBeforeHeight = summary.textBefore ? measure(() => {
+    const paragraph = document.createElement('p')
+    paragraph.style.margin = '0 0 16px'
+    paragraph.style.fontSize = '11px'
+    paragraph.style.lineHeight = '1.6'
+    paragraph.style.whiteSpace = 'pre-wrap'
+    paragraph.textContent = summary.textBefore ?? ''
+    return paragraph
+  }) : 0
+
+  const textAfterHeight = summary.textAfter ? measure(() => {
+    const paragraph = document.createElement('p')
+    paragraph.style.margin = '16px 0 0'
+    paragraph.style.fontSize = '11px'
+    paragraph.style.lineHeight = '1.6'
+    paragraph.style.whiteSpace = 'pre-wrap'
+    paragraph.textContent = summary.textAfter ?? ''
+    return paragraph
+  }) : 0
+
+  const entryRowHeight = measure(() => {
+    const row = document.createElement('div')
+    row.style.display = 'flex'
+    row.style.alignItems = 'baseline'
+    row.style.gap = '7px'
+    row.style.marginBottom = '7px'
+    row.style.fontSize = '11px'
+    row.textContent = 'Linha de exemplo'
+    return row
+  })
+
+  container.remove()
+  return { titleHeight, textBeforeHeight, textAfterHeight, entryRowHeight: Math.max(entryRowHeight, 1) }
+}
+
+// Distribui os itens do sumário em quantas páginas forem necessárias
+// pra caber no espaço real de conteúdo de uma página do livro.
+function paginateSummaryEntries(
+  summary: BookSummary,
+  entries: SummaryEntry[],
+  contentWidthPx: number,
+  contentHeightPx: number,
+): SummaryPageData[] {
+  const metrics = measureSummaryMetrics(summary, contentWidthPx)
+  const pages: SummaryPageData[] = []
+  let remaining = entries
+  let isFirst = true
+
+  while (remaining.length > 0 || isFirst) {
+    const available = Math.max(0, contentHeightPx - (isFirst ? metrics.titleHeight + metrics.textBeforeHeight : 0))
+
+    let take = Math.min(remaining.length, Math.floor(available / metrics.entryRowHeight))
+    if (take === 0 && remaining.length > 0) take = 1 // segurança: sempre avança ao menos 1 item
+
+    const pageEntries = remaining.slice(0, take)
+    remaining = remaining.slice(take)
+
+    const isLastEntriesPage = remaining.length === 0
+    const leftover = available - take * metrics.entryRowHeight
+    const includeTextAfter = isLastEntriesPage && Boolean(summary.textAfter) && leftover >= metrics.textAfterHeight
+
+    pages.push({ entries: pageEntries, showTitle: isFirst, showTextBefore: isFirst, showTextAfter: includeTextAfter })
+    isFirst = false
+
+    if (isLastEntriesPage) break
+  }
+
+  if (summary.textAfter && !pages.some((page) => page.showTextAfter)) {
+    pages.push({ entries: [], showTitle: false, showTextBefore: false, showTextAfter: true })
+  }
+
+  return pages
+}
+
+export function BookPreview({ chapters, activeChapterId, bookTitle, cover, summary }: BookPreviewProps) {
   const [open, setOpen] = useState(false)
   const [pages, setPages] = useState<PreviewPage[]>([])
   const [paginating, setPaginating] = useState(false)
-  const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [downloadingDocx, setDownloadingDocx] = useState(false)
-  const bookRef = useRef<HTMLDivElement>(null)
   // Ordem de leitura do livro: capítulo-pai seguido de seus filhos
   // (aninhados via drag-and-drop na lista lateral), não um simples
   // sort por `order` — esse campo só é único entre irmãos, não global
   // (ver src/utils/chapterTree.ts).
   const orderedChapters = useMemo(() => sortChaptersForReading(chapters), [chapters])
 
+  // Capa e sumário usam o mesmo formato/orientação/margens de página
+  // do primeiro capítulo (ou A5 retrato, se ainda não houver nenhum),
+  // só pra manter a proporção coerente com o resto do livro na prévia.
+  const frontMatterGeometry = useMemo(() => {
+    const grid = orderedChapters[0]?.grid
+    const format = getPageFormat(grid?.pageFormat ?? 'a5')
+    const portrait = grid?.orientation !== 'landscape'
+    return {
+      width: portrait ? format.width : format.height,
+      height: portrait ? format.height : format.width,
+      marginTop: grid?.marginTop ?? 18,
+      marginRight: grid?.marginRight ?? 16,
+      marginBottom: grid?.marginBottom ?? 20,
+      marginLeft: grid?.marginLeft ?? 16,
+    }
+  }, [orderedChapters])
+
+  const [summaryPages, setSummaryPages] = useState<SummaryPageData[]>([])
+
+  // Capa e sumário (quando existem) entram antes dos capítulos, então
+  // a numeração de página dos capítulos precisa deslocar por essa
+  // quantidade de páginas de "pré-texto" pra bater com o número que o
+  // próprio sumário mostra pra cada capítulo. Como o sumário pode
+  // ocupar mais de uma página (lista grande de capítulos), a
+  // paginação dele é calculada aqui, na mesma passada que a dos
+  // capítulos — e só depois disso dá pra saber o deslocamento certo
+  // pra numerar as páginas dos capítulos e do próprio sumário.
   useEffect(() => {
     if (!open) return
     setPaginating(true)
     const frame = window.requestAnimationFrame(() => {
-      setPages(orderedChapters.flatMap(paginateChapter))
+      const chapterPages = orderedChapters.flatMap(paginateChapter)
+      setPages(chapterPages)
+
+      if (summary) {
+        const rawEntries: SummaryEntry[] = orderedChapters
+          .filter((chapter) => summary.showSubchapters || !chapter.parentId)
+          .map((chapter) => ({
+            id: chapter.id,
+            title: chapter.title,
+            depth: summary.showSubchapters ? chapterDepth(chapter, chapters) : 0,
+          }))
+
+        const contentWidthPx = (frontMatterGeometry.width - frontMatterGeometry.marginLeft - frontMatterGeometry.marginRight) * MM_TO_PX
+        const contentHeightPx = (frontMatterGeometry.height - frontMatterGeometry.marginTop - frontMatterGeometry.marginBottom) * MM_TO_PX
+        const chunks = paginateSummaryEntries(summary, rawEntries, contentWidthPx, contentHeightPx)
+
+        const frontMatterCount = (hasCoverContent(cover) ? 1 : 0) + chunks.length
+        const chapterStartPage = new Map<string, number>()
+        chapterPages.forEach((page, index) => {
+          if (page.chapterPageIndex === 0 && !chapterStartPage.has(page.chapter.id)) {
+            chapterStartPage.set(page.chapter.id, frontMatterCount + index + 1)
+          }
+        })
+
+        setSummaryPages(chunks.map((chunk) => ({
+          ...chunk,
+          entries: chunk.entries.map((entry) => ({ ...entry, pageNumber: chapterStartPage.get(entry.id) })),
+        })))
+      } else {
+        setSummaryPages([])
+      }
+
       setPaginating(false)
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [open, orderedChapters])
+  }, [open, orderedChapters, chapters, summary, cover, frontMatterGeometry])
 
-  async function downloadPdf() {
-    if (!bookRef.current || paginating || !pages.length || downloadingPdf) return
+  const frontMatterPageCount = (hasCoverContent(cover) ? 1 : 0) + summaryPages.length
 
-    setDownloadingPdf(true)
-    try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ])
-      const pageElements = Array.from(
-        bookRef.current.querySelectorAll<HTMLElement>('[data-book-page="true"]'),
-      )
-
-      if (!pageElements.length) return
-
-      let pdf: InstanceType<typeof jsPDF> | null = null
-
-      for (let index = 0; index < pageElements.length; index += 1) {
-        const page = pages[index]
-        const element = pageElements[index]
-        const orientation = page.width > page.height ? 'landscape' : 'portrait'
-
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          logging: false,
-        })
-
-        const image = canvas.toDataURL('image/jpeg', 0.96)
-
-        if (!pdf) {
-          pdf = new jsPDF({
-            orientation,
-            unit: 'mm',
-            format: [page.width, page.height],
-            compress: true,
-          })
-        } else {
-          pdf.addPage([page.width, page.height], orientation)
-        }
-
-        pdf.addImage(image, 'JPEG', 0, 0, page.width, page.height, undefined, 'FAST')
-      }
-
-      pdf?.save(`${safeFileName(bookTitle)}.pdf`)
-    } catch (error) {
-      console.error('Falha ao gerar PDF:', error)
-      window.alert('Não foi possível gerar o PDF. Tente novamente.')
-    } finally {
-      setDownloadingPdf(false)
-    }
+  // PDF via geração customizada (jsPDF) dependia de baixar as imagens
+  // de novo pra embutir os bytes — e como o bucket do Storage não
+  // libera CORS pra leitura crua (só pra exibir em <img>, que é o que
+  // a prévia usa), esse download falhava silenciosamente e o PDF saía
+  // sem imagem nenhuma. Usar a impressão nativa do navegador evita
+  // isso de vez: ele imprime a prévia como está na tela (imagens via
+  // <img> normal, sem precisar ler os bytes por JS), e todo navegador
+  // já tem "Salvar como PDF" na própria janela de impressão.
+  function handlePrint() {
+    window.print()
   }
 
   // Além do PDF (só leitura), gera o livro num .docx editável — pra
@@ -372,7 +487,7 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
         <span>Visualizar livro</span>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div className={bookPreviewCss.overlay} role="dialog" aria-modal="true">
           <header className={bookPreviewCss.topbar}>
             <div className={bookPreviewCss.title}>
@@ -383,12 +498,12 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
               <button
                 className={bookPreviewCss.download}
                 type="button"
-                onClick={() => void downloadPdf()}
-                disabled={paginating || !pages.length || downloadingPdf}
-                title="Baixar livro em PDF"
+                onClick={handlePrint}
+                disabled={paginating || (!pages.length && !hasCoverContent(cover) && !summary)}
+                title="Imprimir ou salvar como PDF (janela de impressão do navegador)"
               >
-                {downloadingPdf ? <LoaderCircle className={bookPreviewCss.spinner} size={16} /> : <Download size={16} />}
-                <span>{downloadingPdf ? 'Gerando PDF...' : 'Baixar PDF'}</span>
+                <Printer size={16} />
+                <span>Imprimir / Salvar PDF</span>
               </button>
               <button
                 className={bookPreviewCss.download}
@@ -405,10 +520,66 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
           </header>
 
           <main className={bookPreviewCss.viewport}>
-            {paginating ? <div className={bookPreviewCss.empty}>Formatando e separando as páginas...</div> : pages.length === 0 ? (
+            {paginating ? <div className={bookPreviewCss.empty}>Formatando e separando as páginas...</div> : (!pages.length && !hasCoverContent(cover) && !summary) ? (
               <div className={bookPreviewCss.empty}>Nenhum capítulo para visualizar.</div>
             ) : (
-              <div className={bookPreviewCss.book} ref={bookRef}>
+              <div className={bookPreviewCss.book}>
+                {hasCoverContent(cover) && (
+                  <article
+                    className={bookPreviewCss.page}
+                    data-book-page="true"
+                    style={{
+                      width: `${frontMatterGeometry.width}mm`,
+                      height: `${frontMatterGeometry.height}mm`,
+                      padding: '12%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      gap: 12,
+                      backgroundColor: cover.backgroundColor || '#1f2933',
+                      backgroundImage: cover.imageUrl ? `url(${cover.imageUrl})` : undefined,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }}
+                  >
+                    {cover.title && (
+                      <h1 style={{ margin: 0, fontSize: '32px', lineHeight: 1.25, color: cover.textColor || '#ffffff', textShadow: '0 2px 10px rgba(0,0,0,.35)' }}>
+                        {cover.title}
+                      </h1>
+                    )}
+                    {cover.subtitle && (
+                      <p style={{ margin: 0, fontSize: '15px', color: cover.textColor || '#ffffff', opacity: 0.9, textShadow: '0 2px 10px rgba(0,0,0,.35)' }}>
+                        {cover.subtitle}
+                      </p>
+                    )}
+                  </article>
+                )}
+                {summary && summaryPages.map((summaryPage, summaryPageIndex) => {
+                  const numberOffset = summaryPages.slice(0, summaryPageIndex).reduce((sum, page) => sum + page.entries.length, 0)
+                  return (
+                    <article
+                      key={`summary-${summaryPageIndex}`}
+                      className={bookPreviewCss.page}
+                      data-book-page="true"
+                      style={{
+                        width: `${frontMatterGeometry.width}mm`,
+                        height: `${frontMatterGeometry.height}mm`,
+                        padding: `${frontMatterGeometry.marginTop}mm ${frontMatterGeometry.marginRight}mm ${frontMatterGeometry.marginBottom}mm ${frontMatterGeometry.marginLeft}mm`,
+                      }}
+                    >
+                      <BookSummaryView
+                        summary={summary}
+                        entries={summaryPage.entries}
+                        showTitle={summaryPage.showTitle}
+                        showTextBefore={summaryPage.showTextBefore}
+                        showTextAfter={summaryPage.showTextAfter}
+                        numberOffset={numberOffset}
+                      />
+                    </article>
+                  )
+                })}
                 {pages.map((page, pageIndex) => {
                   const { chapter, grid } = page
                   const isFirstChapterPage = page.chapterPageIndex === 0
@@ -491,10 +662,10 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
                             bottom: '5mm',
                           }}
                         >
-                          <FooterPreview footer={chapter.footer} chapterTitle={chapter.title} pageNumber={pageIndex + 1} />
+                          <FooterPreview footer={chapter.footer} chapterTitle={chapter.title} pageNumber={frontMatterPageCount + pageIndex + 1} />
                         </div>
                       ) : (
-                        <span className={bookPreviewCss.pageNumber}>{pageIndex + 1}</span>
+                        <span className={bookPreviewCss.pageNumber}>{frontMatterPageCount + pageIndex + 1}</span>
                       )}
                     </article>
                   )
@@ -502,7 +673,8 @@ export function BookPreview({ chapters, activeChapterId, bookTitle }: BookPrevie
               </div>
             )}
           </main>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

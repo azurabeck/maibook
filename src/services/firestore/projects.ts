@@ -15,7 +15,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { BookProject, ChapterOrderAnalysis, CharacterDetectionAnalysis, LocationDetectionAnalysis, StoryTimelineAnalysis } from '@/types'
+import type { BookCover, BookProject, BookSummary, ChapterOrderAnalysis, CharacterDetectionAnalysis, LocationDetectionAnalysis, StoryTimelineAnalysis } from '@/types'
 
 const PROJECTS_COLLECTION = 'projects'
 
@@ -112,6 +112,24 @@ export async function updateLocationDetectionAnalysis(
 export async function updateWorldMapImage(projectId: string, imageUrl: string | null) {
   await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), {
     worldMapImageUrl: imageUrl ?? deleteField(),
+    updatedAt: Date.now(),
+  })
+}
+
+// Salva (ou remove, passando null) a capa do livro.
+export async function updateCover(projectId: string, cover: BookCover | null) {
+  await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), {
+    cover: cover ?? deleteField(),
+    updatedAt: Date.now(),
+  })
+}
+
+// Salva (ou remove, passando null) o modelo do sumário do livro. A
+// lista de capítulos em si nunca é salva aqui — é sempre recalculada
+// da estrutura atual de capítulos na hora de exibir/imprimir.
+export async function updateSummary(projectId: string, summary: BookSummary | null) {
+  await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), {
+    summary: summary ?? deleteField(),
     updatedAt: Date.now(),
   })
 }

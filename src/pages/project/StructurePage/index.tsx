@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { HeaderStructureManager } from '@/components/organisms/HeaderStructureManager/index'
 import { GridStructureManager } from '@/components/organisms/GridStructureManager/index'
 import { FooterStructureManager } from '@/components/organisms/FooterStructureManager/index'
+import { CoverManager } from '@/components/organisms/CoverManager/index'
+import { SummaryManager } from '@/components/organisms/SummaryManager/index'
 import { useProjectStore } from '@/store/useProjectStore'
 import { structurePageCss as css } from './css'
 import { structurePageSections } from './type'
@@ -35,6 +37,10 @@ export function StructurePage() {
           <GridStructureManager projectId={projectId} />
         ) : activeSection === 'Footer' && projectId ? (
           <FooterStructureManager projectId={projectId} />
+        ) : activeSection === 'Capa' && projectId ? (
+          <CoverManager projectId={projectId} />
+        ) : activeSection === 'Sumário' && projectId ? (
+          <SummaryManager projectId={projectId} />
         ) : (
           <div className={css.placeholder}>
             <p>

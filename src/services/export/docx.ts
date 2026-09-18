@@ -10,7 +10,7 @@ import { sortChaptersForReading } from '@/utils/chapterTree'
 // capítulo vira um título + parágrafos comuns, um atrás do outro.
 //
 // A lib "docx" é pesada, então só é carregada quando alguém realmente
-// pede o download (mesmo esquema do jsPDF/html2canvas no PDF).
+// pede o download.
 
 const DOCX_IMAGE_TYPES = ['jpg', 'png', 'gif', 'bmp'] as const
 type DocxImageType = (typeof DOCX_IMAGE_TYPES)[number]

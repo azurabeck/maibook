@@ -384,7 +384,7 @@ export function EditorPanel() {
               onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
             />
           )}
-          <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} />
+          <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} cover={currentProject?.cover} summary={currentProject?.summary} />
         </div>
       )}
       {/* #endregion */}

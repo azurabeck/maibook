@@ -47,6 +47,41 @@ export interface LocationDetectionAnalysis {
   analyzedAt: number
 }
 
+// Capa do livro (aba Estruturas → Capa). `imageUrl` pode vir tanto de
+// upload (Firebase Storage) quanto de um link colado direto — pra
+// quem só quer a imagem, sem título/cores por cima. Os demais campos
+// só entram em jogo quando a pessoa "monta" a capa pelo modal.
+export interface BookCover {
+  imageUrl?: string
+  title?: string
+  subtitle?: string
+  backgroundColor?: string
+  textColor?: string
+}
+
+// Estilo do preenchimento entre o título do capítulo e o número da
+// página no sumário: pontilhado (padrão de livro clássico), uma linha
+// sólida, ou nenhum (título e número só afastados, sem ligação visual).
+export type SummaryLeaderStyle = 'dots' | 'line' | 'none'
+// Prefixo de cada item do sumário: número (1., 2., 3.), marcador (•),
+// ou nenhum (só o título do capítulo).
+export type SummaryNumbering = 'none' | 'number' | 'bullet'
+
+// Sumário do livro (aba Estruturas → Sumário). A LISTA de capítulos é
+// sempre gerada automaticamente a partir da estrutura atual de
+// capítulos — o que fica salvo aqui é só o "modelo" (estilo visual) e
+// os textos livres antes/depois da lista.
+export interface BookSummary {
+  title: string
+  textBefore?: string
+  textAfter?: string
+  fontFamily: string
+  leaderStyle: SummaryLeaderStyle
+  numbering: SummaryNumbering
+  showPageNumbers: boolean
+  showSubchapters: boolean
+}
+
 export interface BookProject {
   id: string
   ownerId: string // uid do usuário dono do projeto (vem do Firebase Auth)
@@ -60,6 +95,8 @@ export interface BookProject {
   characterDetectionAnalysis?: CharacterDetectionAnalysis
   locationDetectionAnalysis?: LocationDetectionAnalysis
   worldMapImageUrl?: string // imagem do mapa geral do mundo do livro
+  cover?: BookCover
+  summary?: BookSummary
 }
 
 export interface ChapterHeader extends HeaderStructureDraft {

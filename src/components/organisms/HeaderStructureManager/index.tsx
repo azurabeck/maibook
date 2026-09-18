@@ -399,6 +399,8 @@ function HeaderStructureEditor({ initialValue, onCancel, onSave }: HeaderStructu
                       <option value="'Times New Roman', serif">Times New Roman</option>
                       <option value="Arial, sans-serif">Arial</option>
                       <option value="'Courier New', monospace">Courier New</option>
+                      <option value="'Cinzel', serif">Cinzel</option>
+                      <option value="'Alegreya Sans', sans-serif">Alegreya Sans</option>
                     </select>
                   </label>
                   <label className={css.field}>
