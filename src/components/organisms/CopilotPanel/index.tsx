@@ -30,6 +30,7 @@ export function CopilotPanel() {
   const [askError, setAskError] = useState('')
   const [characters, setCharacters] = useState<Character[]>([])
   const [notesDraft, setNotesDraft] = useState('')
+  const [yearDraft, setYearDraft] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   const conversationRef = useRef<HTMLDivElement>(null)
 
@@ -39,6 +40,7 @@ export function CopilotPanel() {
     state.chapters.find((chapter) => chapter.id === state.activeChapterId),
   )
   const updateChapterNotes = useProjectStore((state) => state.updateChapterNotes)
+  const updateChapterYear = useProjectStore((state) => state.updateChapterYear)
 
   useEffect(() => {
     if (!currentProject?.id) return
@@ -48,6 +50,27 @@ export function CopilotPanel() {
   useEffect(() => {
     setNotesDraft(activeChapter?.notes ?? '')
   }, [activeChapter?.id, activeChapter?.notes])
+
+  useEffect(() => {
+    setYearDraft(activeChapter?.year !== undefined ? String(activeChapter.year) : '')
+  }, [activeChapter?.id, activeChapter?.year])
+
+  // ano em que o capítulo se passa — salva ao sair do campo. Vazio
+  // limpa o ano; texto que não é número inteiro volta pro valor salvo.
+  function commitYear() {
+    if (!activeChapter) return
+    const trimmed = yearDraft.trim()
+    if (!trimmed) {
+      if (activeChapter.year !== undefined) updateChapterYear(activeChapter.id, null)
+      return
+    }
+    const year = Number(trimmed)
+    if (!Number.isInteger(year)) {
+      setYearDraft(activeChapter.year !== undefined ? String(activeChapter.year) : '')
+      return
+    }
+    if (year !== activeChapter.year) updateChapterYear(activeChapter.id, year)
+  }
 
   // rola a conversa pro final sempre que uma mensagem nova chega ou
   // quando o indicador de "carregando" aparece
@@ -167,6 +190,23 @@ export function CopilotPanel() {
               <span>Anotações privadas deste capítulo</span>
             </div>
           </div>
+          <label className={css.notesYear}>
+            <span>Ano em que se passa</span>
+            <input
+              value={yearDraft}
+              // sem inputMode="numeric": o teclado numérico do celular
+              // não tem o sinal de menos, e ano negativo é permitido
+              placeholder="Ex: 1998 ou -300"
+              disabled={!activeChapter}
+              // só dígitos e um "-" no começo
+              onChange={(event) => setYearDraft(event.target.value.replace(/[^\d-]/g, '').replace(/(?!^)-/g, ''))}
+              onBlur={commitYear}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur()
+              }}
+            />
+            <small>Não aparece no livro — serve para a timeline e a idade dos personagens.</small>
+          </label>
           <textarea
             value={notesDraft}
             onChange={(event) => setNotesDraft(event.target.value)}

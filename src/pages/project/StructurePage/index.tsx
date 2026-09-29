@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { HeaderStructureManager } from '@/components/organisms/HeaderStructureManager/index'
 import { GridStructureManager } from '@/components/organisms/GridStructureManager/index'
 import { FooterStructureManager } from '@/components/organisms/FooterStructureManager/index'
@@ -10,7 +11,11 @@ import { structurePageSections } from './type'
 import type { StructurePageSection } from './type'
 
 export function StructurePage() {
-  const [activeSection, setActiveSection] = useState<StructurePageSection>(structurePageSections[0])
+  // ?secao=Sumário abre direto numa aba (ex.: clique em "Sumário" na
+  // lista lateral de capítulos)
+  const [searchParams] = useSearchParams()
+  const requested = structurePageSections.find((section) => section === searchParams.get('secao'))
+  const [activeSection, setActiveSection] = useState<StructurePageSection>(requested ?? structurePageSections[0])
   const projectId = useProjectStore((state) => state.currentProject?.id)
 
   return (

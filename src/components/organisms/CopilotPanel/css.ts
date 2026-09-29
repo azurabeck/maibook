@@ -107,6 +107,11 @@ injectStyleSheet('copilot-panel-organism-css', `
 .copilot-panel__notes { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; }
 .copilot-panel__notes-header strong { display: block; font-size: 13px; }
 .copilot-panel__notes-header span { display: block; margin-top: 3px; color: var(--text-secondary); font-size: 11px; }
+.copilot-panel__notes-year { display: grid; grid-template-columns: auto 90px; align-items: center; gap: 4px 10px; }
+.copilot-panel__notes-year span { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.copilot-panel__notes-year input { min-height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-panel-alt); color: var(--text-primary); font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; outline: none; }
+.copilot-panel__notes-year input:focus { border-color: var(--accent-purple); box-shadow: 0 0 0 2px var(--accent-purple-soft); }
+.copilot-panel__notes-year small { grid-column: 1 / -1; color: var(--text-secondary); font-size: 11px; }
 .copilot-panel__notes textarea { flex: 1; min-height: 220px; resize: none; padding: 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-panel-alt); color: var(--text-primary); font: inherit; font-size: 12px; line-height: 1.55; outline: none; }
 .copilot-panel__notes textarea:focus { border-color: var(--accent-purple); box-shadow: 0 0 0 2px var(--accent-purple-soft); }
 .copilot-panel__notes > button { align-self: flex-end; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid var(--accent-purple); border-radius: 9px; background: var(--accent-purple); color: white; font-size: 11px; font-weight: 700; }
@@ -132,4 +137,5 @@ export const copilotPanelCss = {
   copilotPanelEmpty: 'copilot-panel__empty',
   notes: 'copilot-panel__notes',
   notesHeader: 'copilot-panel__notes-header',
+  notesYear: 'copilot-panel__notes-year',
 } as const

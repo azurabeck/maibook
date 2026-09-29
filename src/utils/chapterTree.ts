@@ -14,6 +14,8 @@
 // recolher capítulos-pai) quanto pelo BookPreview (paginação do livro,
 // que sempre quer todos os capítulos, sem recolhimento).
 
+import type { BookSection } from '@/types'
+
 export interface ChapterLike {
   id: string
   order: number
@@ -35,10 +37,61 @@ export function groupChaptersByParent<T extends ChapterLike>(chapters: T[]): Map
   return childrenByParent
 }
 
+// #region Seções do livro (Sumário, Capítulos, Dedicatória...)
+// Id fixo da seção principal: capítulos sem sectionId (todos os
+// antigos) caem nela.
+export const MAIN_SECTION_ID = 'chapters'
+export const SUMMARY_SECTION_ID = 'summary'
+
+// Seções salvas no projeto, garantindo que Sumário e Capítulos existam
+// (projetos antigos não têm nenhuma: começam com Sumário acima de
+// Capítulos).
+export function resolveBookSections(sections?: BookSection[]): BookSection[] {
+  const list = [...(sections ?? [])]
+  if (!list.some((section) => section.id === MAIN_SECTION_ID)) {
+    list.push({ id: MAIN_SECTION_ID, kind: 'chapters', title: 'Capítulos' })
+  }
+  if (!list.some((section) => section.id === SUMMARY_SECTION_ID)) {
+    const mainIndex = list.findIndex((section) => section.id === MAIN_SECTION_ID)
+    list.splice(mainIndex, 0, { id: SUMMARY_SECTION_ID, kind: 'summary', title: 'Sumário' })
+  }
+  return list
+}
+
+// Dedicatória fica fora do sumário por padrão; o resto entra.
+export function sectionShowsInSummary(section: BookSection) {
+  if (section.kind === 'summary') return false
+  return section.showInSummary ?? section.kind !== 'dedication'
+}
+
+// Seção de um capítulo: a do capítulo raiz da sua árvore (os
+// aninhados herdam). sectionId apontando pra seção que não existe
+// mais cai na principal.
+export function chapterSectionId<T extends ChapterLike & { sectionId?: string }>(
+  chapter: T,
+  chapters: T[],
+  sections?: BookSection[],
+): string {
+  const byId = new Map(chapters.map((item) => [item.id, item]))
+  const visited = new Set<string>()
+  let root = chapter
+  while (root.parentId && !visited.has(root.id)) {
+    visited.add(root.id)
+    const parent = byId.get(root.parentId)
+    if (!parent) break
+    root = parent
+  }
+  const sectionId = root.sectionId ?? MAIN_SECTION_ID
+  if (sections && !sections.some((section) => section.id === sectionId && section.kind !== 'summary')) return MAIN_SECTION_ID
+  return sectionId
+}
+// #endregion
+
 // Retorna os capítulos na ordem de leitura do livro: cada capítulo-pai
 // seguido imediatamente por seus filhos (também em ordem), antes do
-// próximo irmão do pai.
-export function sortChaptersForReading<T extends ChapterLike>(chapters: T[]): T[] {
+// próximo irmão do pai. Com `sections`, os capítulos raiz vão seção
+// por seção, na ordem das seções.
+export function sortChaptersForReading<T extends ChapterLike & { sectionId?: string }>(chapters: T[], sections?: BookSection[]): T[] {
   const childrenByParent = groupChaptersByParent(chapters)
   const ordered: T[] = []
 
@@ -49,7 +102,20 @@ export function sortChaptersForReading<T extends ChapterLike>(chapters: T[]): T[
     }
   }
 
-  visit(undefined)
+  if (!sections) {
+    visit(undefined)
+    return ordered
+  }
+
+  const resolved = resolveBookSections(sections)
+  const roots = childrenByParent.get(undefined) ?? []
+  for (const section of resolved) {
+    for (const root of roots) {
+      if (chapterSectionId(root, chapters, resolved) !== section.id) continue
+      ordered.push(root)
+      visit(root.id)
+    }
+  }
   return ordered
 }
 

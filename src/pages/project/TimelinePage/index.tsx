@@ -22,6 +22,7 @@ function chapterPayload(chapters: Chapter[]) {
       title: chapter.title,
       order: chapter.order,
       content: htmlToText(chapter.content),
+      year: chapter.year,
     }))
     .filter((chapter) => chapter.content.length > 0)
 }
@@ -38,6 +39,8 @@ export function TimelinePage() {
     () => [...chapters].sort((a, b) => a.order - b.order),
     [chapters],
   )
+
+  const hasChapterYears = project?.storyTimelineAnalysis?.events.some((event) => event.yearSource === 'chapter') ?? false
 
   const runAnalysis = async () => {
     if (!project || !analysisKind) return
@@ -159,7 +162,7 @@ export function TimelinePage() {
             <div>
               <p className={css.eyebrow}>Cronologia interna</p>
               <h2>Timeline da história</h2>
-              <p>A IA organiza os principais eventos do manuscrito, usando o primeiro acontecimento como ano 0.</p>
+              <p>A IA organiza os principais eventos do manuscrito, usando o ano definido em cada capítulo (nas Notas). Capítulos sem ano têm o ano estimado pela IA.</p>
             </div>
             <button className={css.aiButton} type="button" onClick={() => { setError(''); setAnalysisKind('story') }}>
               <Sparkles size={16} /> Gerar timeline com IA
@@ -182,6 +185,10 @@ export function TimelinePage() {
                     <div className={css.yearColumn}>
                       <span>Ano</span>
                       <strong>{event.year}</strong>
+                      {/* só marca quando a timeline mistura anos da autora com anos estimados */}
+                      {hasChapterYears && event.yearSource === 'ai' && (
+                        <em title="Nenhum capítulo deste evento tem ano definido nas Notas">estimado</em>
+                      )}
                     </div>
                     <div className={css.timelineDot} />
                     <div className={css.eventCard}>
@@ -197,7 +204,7 @@ export function TimelinePage() {
             <div className={css.empty}>
               <span><BookOpen size={30} /></span>
               <h3>Reconstrua a cronologia do livro</h3>
-              <p>A IA analisará todos os capítulos, identificará os eventos principais e calculará os anos relativos a partir do ano 0.</p>
+              <p>A IA analisará todos os capítulos, identificará os eventos principais e usará o ano definido em cada capítulo. Sem ano definido, ela estima a partir das pistas do texto.</p>
               <button type="button" onClick={() => setAnalysisKind('story')}><Sparkles size={16} /> Gerar timeline com IA</button>
             </div>
           )}
@@ -213,7 +220,7 @@ export function TimelinePage() {
                 <h2>{analysisKind === 'chapters' ? 'Revisar ordem dos capítulos' : 'Gerar timeline da história'}</h2>
                 <p>{analysisKind === 'chapters'
                   ? 'A IA avaliará ritmo, cronologia, revelações e continuidade, sem alterar os capítulos automaticamente.'
-                  : 'Todos os capítulos serão analisados para construir uma cronologia relativa iniciada no ano 0.'}</p>
+                  : 'Todos os capítulos serão analisados. Os anos definidos nas Notas de cada capítulo são respeitados; os demais são estimados pela IA.'}</p>
               </div>
               <button disabled={analyzing} onClick={() => setAnalysisKind(null)} type="button"><X size={18} /></button>
             </header>

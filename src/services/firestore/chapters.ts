@@ -52,12 +52,16 @@ export async function createChapter(
   order: number,
   title: string,
   pageType: ChapterPageType = 'text',
+  sectionId?: string, // ausente = seção principal "Capítulos"
+  parentId?: string, // cria já dentro de um grupo (capítulo-pai)
 ) {
   const docRef = await addDoc(chaptersCollection(projectId), {
     title,
     order,
     content: '',
     ...(pageType !== 'text' ? { pageType } : {}),
+    ...(sectionId ? { sectionId } : {}),
+    ...(parentId ? { parentId } : {}),
   })
   return docRef.id
 }
@@ -88,6 +92,17 @@ export async function updateChapterNotesInFirestore(
   notes: string,
 ) {
   await updateDoc(chapterDoc(projectId, chapterId), { notes })
+}
+
+// year null = remove o campo (capítulo sem ano definido)
+export async function updateChapterYearInFirestore(
+  projectId: string,
+  chapterId: string,
+  year: number | null,
+) {
+  await updateDoc(chapterDoc(projectId, chapterId), {
+    year: year ?? deleteField(),
+  })
 }
 
 export async function updateChapterPageTypeInFirestore(
@@ -166,10 +181,13 @@ export async function updateAllChaptersFooterInFirestore(
 // sempre único entre irmãos (mesmo parentId), não um índice global.
 // `parentId`: omitido = não mexe; null = remove (o capítulo vira
 // raiz); string = novo pai (aninha dentro dele).
+// `sectionId`: mesma regra — omitido = não mexe; null = volta pra seção
+// principal; string = move pra outra seção do livro.
 export interface ChapterOrderUpdate {
   id: string
   order: number
   parentId?: string | null
+  sectionId?: string | null
 }
 
 export async function reorderChaptersInFirestore(
@@ -177,9 +195,10 @@ export async function reorderChaptersInFirestore(
   updates: ChapterOrderUpdate[],
 ) {
   const batch = writeBatch(db)
-  updates.forEach(({ id, order, parentId }) => {
+  updates.forEach(({ id, order, parentId, sectionId }) => {
     const data: Record<string, unknown> = { order }
     if (parentId !== undefined) data.parentId = parentId === null ? deleteField() : parentId
+    if (sectionId !== undefined) data.sectionId = sectionId === null ? deleteField() : sectionId
     batch.update(chapterDoc(projectId, id), data)
   })
   await batch.commit()

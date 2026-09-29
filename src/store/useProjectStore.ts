@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { BookProject, Chapter, ChapterFooter, ChapterGrid, ChapterHeader, ChapterPageType } from '@/types'
 import { renameProject as renameProjectInFirestore, subscribeToProject } from '@/services/firestore/projects'
 import type { ChapterOrderUpdate } from '@/services/firestore/chapters'
+import { MAIN_SECTION_ID, chapterSectionId } from '@/utils/chapterTree'
 import {
   createChapter,
   deleteChapterInFirestore,
@@ -10,6 +11,7 @@ import {
   updateChapterContentInFirestore,
   updateChapterHeaderInFirestore,
   updateChapterNotesInFirestore,
+  updateChapterYearInFirestore,
   updateChapterGridInFirestore,
   updateAllChaptersGridInFirestore,
   updateChapterFooterInFirestore,
@@ -38,6 +40,12 @@ export type ProjectStatus = 'idle' | 'loading' | 'ready' | 'not-found'
 // #endregion
 
 // #region Tipos do estado
+export interface NewChapterOptions {
+  sectionId?: string
+  title?: string
+  parentId?: string
+}
+
 interface ProjectState {
   currentProject: BookProject | null
   projectStatus: ProjectStatus
@@ -62,8 +70,12 @@ interface ProjectState {
   updateAllChaptersFooter: (footer: ChapterFooter) => Promise<void>
   updateChapterPageType: (chapterId: string, pageType: ChapterPageType) => Promise<void>
   updateChapterPageImage: (chapterId: string, pageImageUrl: string | null) => Promise<void>
-  addChapter: (pageType?: ChapterPageType) => Promise<void>
+  // Cria uma página (ou grupo) e devolve o id. sectionId ausente =
+  // seção principal "Capítulos"; parentId = cria dentro desse grupo;
+  // title ausente = "Capítulo NN"
+  addChapter: (pageType?: ChapterPageType, options?: NewChapterOptions) => Promise<string | undefined>
   renameChapter: (chapterId: string, newTitle: string) => void
+  updateChapterYear: (chapterId: string, year: number | null) => void
   deleteChapter: (chapterId: string) => void
   // Reordena e/ou reaninha capítulos — usado tanto pra reordenar
   // dentro do mesmo grupo quanto pra arrastar um capítulo pra dentro
@@ -308,19 +320,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   // cria um novo capítulo no Firestore, já dentro do projeto atual,
   // e o seleciona assim que o id vier de volta — sempre no nível raiz,
   // depois de todos os outros capítulos raiz (ver Chapter.parentId)
-  addChapter: async (pageType = 'text') => {
+  addChapter: async (pageType = 'text', { sectionId, title, parentId } = {}) => {
     const projectId = get().currentProject?.id
-    if (!projectId) return
+    if (!projectId) return undefined
 
-    const rootChapters = get().chapters.filter((chapter) => !chapter.parentId)
-    const nextOrder = rootChapters.length + 1
-    const title = `Capítulo ${String(nextOrder).padStart(2, '0')}`
+    const chapters = get().chapters
+    // `order` só precisa ser único entre irmãos: vai pro fim deles
+    const siblings = chapters.filter((chapter) => (chapter.parentId ?? undefined) === parentId)
+    const nextOrder = siblings.reduce((max, chapter) => Math.max(max, chapter.order), 0) + 1
+    const inMainSection = !sectionId || sectionId === MAIN_SECTION_ID
+    // "Capítulo NN": conta as páginas (não grupos) da seção principal —
+    // prólogo, epílogo e as outras seções não contam como capítulo
+    const parentIds = new Set(chapters.map((chapter) => chapter.parentId).filter(Boolean))
+    const pageCount = chapters.filter((chapter) =>
+      !parentIds.has(chapter.id) && chapter.parentId && chapterSectionId(chapter, chapters) === MAIN_SECTION_ID).length
+    const chapterTitle = title ?? `Capítulo ${String(pageCount + 1).padStart(2, '0')}`
 
     try {
-      const newChapterId = await createChapter(projectId, nextOrder, title, pageType)
+      const newChapterId = await createChapter(
+        projectId,
+        nextOrder,
+        chapterTitle,
+        pageType,
+        parentId || inMainSection ? undefined : sectionId,
+        parentId,
+      )
       set({ activeChapterId: newChapterId })
+      return newChapterId
     } catch (error) {
       console.error('Falha ao criar capítulo:', error)
+      return undefined
     }
   },
 
@@ -373,6 +402,28 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (!projectId) return
     renameChapterInFirestore(projectId, chapterId, newTitle).catch((error) =>
       console.error('Falha ao renomear capítulo:', error),
+    )
+  },
+
+  // mesmo esquema do renameChapter: atualiza na tela na hora e grava
+  // no Firestore em seguida (null = limpa o ano)
+  updateChapterYear: (chapterId, year) => {
+    const projectId = get().currentProject?.id
+
+    set((state) => ({
+      chapters: state.chapters.map((ch) => {
+        if (ch.id !== chapterId) return ch
+        if (year === null) {
+          const { year: _removed, ...rest } = ch
+          return rest
+        }
+        return { ...ch, year }
+      }),
+    }))
+
+    if (!projectId) return
+    updateChapterYearInFirestore(projectId, chapterId, year).catch((error) =>
+      console.error('Falha ao salvar o ano do capítulo:', error),
     )
   },
 

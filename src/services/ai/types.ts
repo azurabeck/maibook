@@ -30,7 +30,7 @@ export interface CharacterAnalysisInput {
 }
 
 export interface TimelineAnalysisInput {
-  chapters: Array<{ id: string; title: string; order: number; content: string }>
+  chapters: Array<{ id: string; title: string; order: number; content: string; year?: number }>
 }
 
 export interface LocationAnalysisInput {

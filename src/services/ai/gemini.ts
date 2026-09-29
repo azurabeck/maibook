@@ -94,9 +94,13 @@ async function callGemini(prompt: string, options?: { json?: boolean }): Promise
 // automático do Gemini 2.5 (implicit caching) consegue reaproveitar
 // esses tokens com 90% de desconto, sem precisarmos gerenciar cache
 // nenhum na mão.
-function buildManuscriptText(chapters: Array<{ id: string; title: string; content: string }>) {
+function buildManuscriptText(chapters: Array<{ id: string; title: string; content: string; year?: number }>) {
   return chapters
-    .map((chapter) => `ID: ${chapter.id}\nCAPÍTULO: ${chapter.title}\n${chapter.content}`)
+    .map((chapter) => {
+      // o ano é só uma anotação da autora, não faz parte do texto do livro
+      const year = chapter.year !== undefined ? `\nANO EM QUE SE PASSA (definido pela autora): ${chapter.year}` : ''
+      return `ID: ${chapter.id}\nCAPÍTULO: ${chapter.title}${year}\n${chapter.content}`
+    })
     .join('\n\n---\n\n')
 }
 
@@ -243,7 +247,8 @@ function parseStoryTimeline(value: string): Omit<StoryTimelineAnalysis, 'analyze
       overview: parsed.overview?.trim() || 'A IA não forneceu um resumo geral.',
       events: Array.isArray(parsed.events)
         ? parsed.events
-            .map((event) => ({ ...event, year: Number(event.year) }))
+            // ano pode ser negativo; a IA às vezes usa o "−" tipográfico
+            .map((event) => ({ ...event, year: Number(String(event.year).trim().replace(/^[−–]/, '-')) }))
             .filter((event) => Number.isFinite(event.year))
             .sort((a, b) => a.year - b.year)
         : [],
@@ -253,12 +258,65 @@ function parseStoryTimeline(value: string): Omit<StoryTimelineAnalysis, 'analyze
   }
 }
 
+// O ano definido pela autora no capítulo sempre ganha do ano que a IA
+// sugeriu: a IA só descreve os eventos e estima o ano dos capítulos
+// que não têm um. Se o evento cita capítulos com anos diferentes, vale
+// o mais antigo. Depois reordena tudo, desempatando pela ordem dos
+// capítulos no livro.
+function applyChapterYears(
+  timeline: Omit<StoryTimelineAnalysis, 'analyzedAt'>,
+  input: TimelineAnalysisInput,
+): Omit<StoryTimelineAnalysis, 'analyzedAt'> {
+  const chapterById = new Map(input.chapters.map((chapter) => [chapter.id, chapter]))
+  const chapterByTitle = new Map(input.chapters.map((chapter) => [chapter.title.trim().toLowerCase(), chapter]))
+
+  const events = timeline.events.map((event) => {
+    const chapterIds = Array.isArray(event.chapterIds) ? event.chapterIds : []
+    const chapterTitles = Array.isArray(event.chapterTitles) ? event.chapterTitles : []
+    // a IA às vezes erra o ID; o título serve de segunda tentativa
+    const eventChapters = [
+      ...chapterIds.map((id) => chapterById.get(id)),
+      ...chapterTitles.map((title) => chapterByTitle.get(title.trim().toLowerCase())),
+    ].filter((chapter) => chapter !== undefined)
+
+    const chapterYears = eventChapters
+      .map((chapter) => chapter.year)
+      .filter((year) => year !== undefined)
+    const firstOrder = eventChapters.length ? Math.min(...eventChapters.map((chapter) => chapter.order)) : Infinity
+
+    return {
+      event: {
+        ...event,
+        chapterIds,
+        chapterTitles,
+        year: chapterYears.length ? Math.min(...chapterYears) : event.year,
+        yearSource: chapterYears.length ? 'chapter' as const : 'ai' as const,
+      },
+      firstOrder,
+    }
+  })
+
+  return {
+    ...timeline,
+    events: events
+      .sort((a, b) => a.event.year - b.event.year || a.firstOrder - b.firstOrder)
+      .map(({ event }) => event),
+  }
+}
+
+// O texto dos capítulos usa **negrito** e *itálico* (ver
+// utils/inlineFormat.ts). Nas revisões que devolvem o texto inteiro,
+// a IA precisa manter essas marcações, senão a formatação some ao
+// aplicar a revisão.
+const KEEP_FORMATTING_RULE = `- O texto usa marcações de formatação: **negrito**, *itálico* e \\* para um asterisco literal. Mantenha todas essas marcações exatamente em volta das mesmas palavras (se reescrever um trecho marcado, mantenha a marcação no trecho equivalente). Não adicione marcações novas.`
+
 export const geminiProvider: AiProvider = {
   name: 'gemini',
 
   async reviewGrammar(text: string) {
     return callGemini(`Revise a gramática e ortografia do texto abaixo, em português.
 Retorne APENAS o texto corrigido, sem explicações.
+${KEEP_FORMATTING_RULE}
 
 Texto:
 """${text}"""`, { json: false })
@@ -277,7 +335,8 @@ Regras:
 - Faça apenas os ajustes necessários; não reescreva frases que já estão corretas.
 - Não adicione nem remova conteúdo da história, apenas corrija e refine a escrita.
 - Mantenha exatamente as mesmas quebras de linha e parágrafos do texto original.
-- Retorne APENAS o texto revisado completo, sem comentários, marcações, aspas envolventes ou explicações.
+- Retorne APENAS o texto revisado completo, sem comentários, aspas envolventes ou explicações.
+${KEEP_FORMATTING_RULE}
 
 Texto:
 """${text}"""`, { json: false })
@@ -297,7 +356,8 @@ Regras:
 - Não altere nenhuma palavra da narração, descrição ou qualquer trecho fora das falas — copie essas partes exatamente como estão, sem nenhuma modificação.
 - Não adicione, remova nem reordene falas ou parágrafos inteiros; trabalhe apenas o texto de cada fala já existente (ela pode ficar mais longa, mais curta, mas continua sendo a fala daquele personagem naquele momento).
 - Mantenha exatamente as mesmas quebras de linha e parágrafos do texto original.
-- Retorne APENAS o texto completo revisado, sem comentários, marcações, aspas envolventes ou explicações.
+- Retorne APENAS o texto completo revisado, sem comentários, aspas envolventes ou explicações.
+${KEEP_FORMATTING_RULE}
 
 Texto:
 """${text}"""`, { json: false })
@@ -585,6 +645,21 @@ Regras:
 
   async analyzeStoryTimeline(input) {
     const chapterText = buildManuscriptText(input.chapters)
+    const hasChapterYears = input.chapters.some((chapter) => chapter.year !== undefined)
+
+    // Com anos definidos pela autora, a escala é a dos anos reais dela;
+    // sem nenhum, a IA continua montando uma cronologia relativa (ano 0).
+    const yearRules = hasChapterYears
+      ? `Alguns capítulos têm "ANO EM QUE SE PASSA" definido pela autora. Esses anos são a verdade da história.
+Regras de ano:
+- Todo evento de um capítulo com ano definido DEVE usar exatamente esse ano.
+- Anos podem ser NEGATIVOS (ex: -300 acontece 300 anos antes do ano 0, e antes de -10). Mantenha o sinal e use sempre número inteiro no campo "year", nunca texto como "300 a.C.".
+- Para eventos de capítulos sem ano definido, estime o ano na MESMA escala (anos reais), usando os anos definidos como âncora e as pistas do texto (passagens de tempo, idades, datas).`
+      : `O primeiro evento deve ser marcado como ano 0. Calcule os anos seguintes de forma relativa com base em passagens de tempo, idades, datas e pistas do texto.
+Regras de ano:
+- O primeiro evento é sempre ano 0.
+- Não invente datas absolutas.
+- Use sempre número inteiro no campo "year".`
 
     const response = await callGemini(`TEXTO DO LIVRO:
 ${chapterText}
@@ -592,18 +667,17 @@ ${chapterText}
 ---
 
 Você é um analista de continuidade narrativa. Monte a sequência cronológica dos principais eventos do livro acima.
-O primeiro evento deve ser marcado como ano 0. Calcule os anos seguintes de forma relativa com base em passagens de tempo, idades, datas e pistas do texto.
+${yearRules}
 Retorne APENAS JSON válido:
 {"overview":"","events":[{"year":0,"title":"","summary":"","chapterIds":[""],"chapterTitles":[""]}]}
-Regras:
-- O primeiro evento é sempre ano 0.
+Regras gerais:
 - Eventos simultâneos podem compartilhar o mesmo ano.
 - Quando não houver passagem de um ano inteiro, mantenha o mesmo ano.
-- Não invente datas absolutas.
+- Cada evento deve citar em "chapterIds" os IDs exatos dos capítulos onde acontece.
 - Organize os eventos por cronologia interna da história, não necessariamente pela ordem dos capítulos.
 - Inclua apenas eventos relevantes para compreender o enredo.
 - Escreva em português do Brasil.`)
 
-    return parseStoryTimeline(response)
+    return applyChapterYears(parseStoryTimeline(response), input)
   },
 }

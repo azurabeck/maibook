@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import {
   Image as ImageIcon,
@@ -21,7 +21,9 @@ import { BookPreview } from '@/components/organisms/BookPreview/index'
 import { GrammarCheckModal } from '@/components/organisms/GrammarCheckModal/index'
 import { DialogueSuggestModal } from '@/components/organisms/DialogueSuggestModal/index'
 import { uploadChapterPageImage, validateImageFile } from '@/services/storage/images'
-import { scrollTextareaToIndex } from '@/utils/textareaCaret'
+import { ChapterTextEditor, contentToDoc } from '@/components/molecules/ChapterTextEditor/index'
+import { stripInline } from '@/utils/inlineFormat'
+import type { Editor } from '@tiptap/react'
 import type { ChapterPageType } from '@/types'
 import { editorPanelCss } from './css'
 
@@ -161,47 +163,59 @@ export function EditorPanel() {
   const isSaving = savingChapterId === activeChapterId
   const grid = activeChapter?.grid
   const pageType: ChapterPageType = activeChapter?.pageType ?? 'text'
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  // instância do editor de texto (Tiptap) do capítulo ativo — usada
+  // pela busca e pra aplicar as revisões da IA
+  const [textEditor, setTextEditor] = useState<Editor | null>(null)
+  const handleEditorReady = useCallback((editor: Editor | null) => setTextEditor(editor), [])
+
+  // revisão da IA (gramática/diálogos) devolve o texto inteiro: passa
+  // pelo editor (entra no Ctrl+Z e dispara o salvamento normal)
+  function applyRevisedContent(chapterId: string, newContent: string) {
+    if (textEditor) textEditor.commands.setContent(contentToDoc(newContent))
+    else updateChapterContent(chapterId, newContent)
+  }
 
   // #region Busca no texto do capítulo
-  // Como o "editor" ainda é um <textarea> simples, a busca funciona
-  // selecionando e rolando até cada trecho encontrado — não dá pra
-  // pintar todas as ocorrências de cor, isso fica pra quando
-  // trocarmos por um editor rico de verdade (Tiptap/Lexical).
+  // A busca percorre o documento do editor e, ao navegar, seleciona o
+  // trecho encontrado e rola até ele. (Ainda não pinta todas as
+  // ocorrências de cor ao mesmo tempo.)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   // -1 = ainda não navegou pra nenhuma ocorrência (só contando).
-  // Importante: navegar (selectMatch) foca o <textarea> do conteúdo,
+  // Importante: navegar (selectMatch) foca o editor do conteúdo,
   // então só pode acontecer quando a pessoa pede explicitamente
   // (Enter ou os botões de próximo/anterior) — nunca a cada tecla
   // digitada na busca, senão o foco pula do campo de busca pro texto
   // no meio da digitação e as próximas teclas se perdem.
   const [matchIndex, setMatchIndex] = useState(-1)
 
+  // posições (from/to) no documento do editor. Cada parágrafo só tem
+  // texto, então o índice dentro do texto do parágrafo + a posição
+  // de início do parágrafo dá a posição exata no documento. A busca
+  // não atravessa parágrafos (uma quebra de linha no meio não casa).
   const searchMatches = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    const content = activeChapter?.content ?? ''
-    if (!query) return [] as Array<{ start: number; end: number }>
+    const found: Array<{ from: number; to: number }> = []
+    if (!query || !textEditor) return found
 
-    const found: Array<{ start: number; end: number }> = []
-    const lowerContent = content.toLowerCase()
-    let from = 0
-    while (from <= lowerContent.length) {
-      const index = lowerContent.indexOf(query, from)
-      if (index === -1) break
-      found.push({ start: index, end: index + query.length })
-      from = index + query.length
-    }
+    textEditor.state.doc.forEach((paragraph, offset) => {
+      const text = paragraph.textContent.toLowerCase()
+      let from = 0
+      while (from <= text.length) {
+        const index = text.indexOf(query, from)
+        if (index === -1) break
+        found.push({ from: offset + 1 + index, to: offset + 1 + index + query.length })
+        from = index + query.length
+      }
+    })
     return found
-  }, [searchQuery, activeChapter?.content])
+    // activeChapter.content: recalcula quando o texto muda
+  }, [searchQuery, textEditor, activeChapter?.content])
 
   function selectMatch(index: number) {
-    const textarea = textareaRef.current
     const match = searchMatches[index]
-    if (!textarea || !match) return
-    textarea.focus()
-    textarea.setSelectionRange(match.start, match.end)
-    scrollTextareaToIndex(textarea, match.start)
+    if (!textEditor || !match) return
+    textEditor.chain().focus().setTextSelection(match).scrollIntoView().run()
   }
 
   // ao digitar uma nova busca, só reseta a contagem — não navega até
@@ -246,10 +260,9 @@ export function EditorPanel() {
   // visualizar livro) pra sobrar mais espaço de leitura do texto
   const [toolsCollapsed, setToolsCollapsed] = useState(false)
 
-  // conta palavras a partir do texto (separa por espaços em branco)
-  const wordCount = activeChapter?.content.trim()
-    ? activeChapter.content.trim().split(/\s+/).length
-    : 0
+  // conta palavras a partir do texto sem as marcações de negrito/itálico
+  const plainContent = activeChapter ? stripInline(activeChapter.content).trim() : ''
+  const wordCount = plainContent ? plainContent.split(/\s+/).length : 0
 
   if (!activeChapter) {
     return (
@@ -374,17 +387,17 @@ export function EditorPanel() {
             <GrammarCheckModal
               key={`grammar-${activeChapter.id}`}
               content={activeChapter.content}
-              onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
+              onApply={(newContent) => applyRevisedContent(activeChapter.id, newContent)}
             />
           )}
           {!isFullImagePage && (
             <DialogueSuggestModal
               key={`dialogue-${activeChapter.id}`}
               content={activeChapter.content}
-              onApply={(newContent) => updateChapterContent(activeChapter.id, newContent)}
+              onApply={(newContent) => applyRevisedContent(activeChapter.id, newContent)}
             />
           )}
-          <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} cover={currentProject?.cover} summary={currentProject?.summary} />
+          <BookPreview chapters={chapters} activeChapterId={activeChapterId} bookTitle={currentProject?.title} cover={currentProject?.cover} summary={currentProject?.summary} sections={currentProject?.sections} />
         </div>
       )}
       {/* #endregion */}
@@ -426,15 +439,19 @@ export function EditorPanel() {
               onChange={(url) => updateChapterPageImage(activeChapter.id, url)}
             />
           )}
-          <textarea
-            ref={textareaRef}
+          <ChapterTextEditor
+            key={activeChapter.id}
+            content={activeChapter.content}
+            savePending={isSaving}
+            onChange={(content) => updateChapterContent(activeChapter.id, content)}
+            onReady={handleEditorReady}
             className={
               isBackgroundPage && activeChapter.pageImageUrl
                 ? `${editorPanelCss.editorPanelTextarea} ${editorPanelCss.editorPanelTextareaOnImage}`
                 : editorPanelCss.editorPanelTextarea
             }
-            value={activeChapter.content}
-            placeholder="Comece a escrever..."
+            // A grid formata apenas o texto durante a escrita.
+            // Página, margens, cabeçalho e rodapé pertencem à visualização do livro.
             style={grid ? {
               fontFamily: grid.fontFamily,
               fontSize: `${grid.fontSize}pt`,
@@ -443,9 +460,6 @@ export function EditorPanel() {
               hyphens: grid.hyphenation ? 'auto' : 'none',
               overflowWrap: 'break-word',
             } : undefined}
-            // A grid formata apenas o texto durante a escrita.
-            // Página, margens, cabeçalho e rodapé pertencem à visualização do livro.
-            onChange={(e) => updateChapterContent(activeChapter.id, e.target.value)}
           />
         </div>
       )}

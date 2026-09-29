@@ -1,5 +1,6 @@
 import type { Paragraph } from 'docx'
-import type { Chapter } from '@/types'
+import { parseInline } from '@/utils/inlineFormat'
+import type { BookSection, Chapter } from '@/types'
 import { sortChaptersForReading } from '@/utils/chapterTree'
 
 // Gera o livro num .docx de verdade (editável no Word, LibreOffice,
@@ -51,7 +52,7 @@ function splitParagraphs(content: string): string[] {
     .filter(Boolean)
 }
 
-export async function generateBookDocxBlob(chapters: Chapter[], bookTitle?: string): Promise<Blob> {
+export async function generateBookDocxBlob(chapters: Chapter[], bookTitle?: string, sections?: BookSection[]): Promise<Blob> {
   const { AlignmentType, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } = await import('docx')
 
   async function buildImageParagraph(imageUrl: string): Promise<Paragraph> {
@@ -75,7 +76,7 @@ export async function generateBookDocxBlob(chapters: Chapter[], bookTitle?: stri
     })
   }
 
-  const orderedChapters = sortChaptersForReading(chapters)
+  const orderedChapters = sortChaptersForReading(chapters, sections)
   const children: Paragraph[] = []
 
   if (bookTitle) {
@@ -115,7 +116,8 @@ export async function generateBookDocxBlob(chapters: Chapter[], bookTitle?: stri
         alignment: AlignmentType.JUSTIFIED,
         spacing: { after: 160 },
         indent: { firstLine: 340 },
-        children: [new TextRun(paragraphText)],
+        // negrito/itálico vêm das marcações do texto (ver utils/inlineFormat.ts)
+        children: parseInline(paragraphText).map((run) => new TextRun({ text: run.text, bold: run.bold, italics: run.italic })),
       }))
     }
   }

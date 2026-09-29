@@ -15,7 +15,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { BookCover, BookProject, BookSummary, ChapterOrderAnalysis, CharacterDetectionAnalysis, LocationDetectionAnalysis, StoryTimelineAnalysis } from '@/types'
+import type { BookCover, BookProject, BookSection, BookSummary, ChapterOrderAnalysis, CharacterDetectionAnalysis, LocationDetectionAnalysis, StoryTimelineAnalysis } from '@/types'
 
 const PROJECTS_COLLECTION = 'projects'
 
@@ -127,9 +127,21 @@ export async function updateCover(projectId: string, cover: BookCover | null) {
 // Salva (ou remove, passando null) o modelo do sumário do livro. A
 // lista de capítulos em si nunca é salva aqui — é sempre recalculada
 // da estrutura atual de capítulos na hora de exibir/imprimir.
+// O Firestore recusa campos `undefined` (a gravação inteira falha) —
+// e o sumário tem vários opcionais (texto antes/depois, estilos por
+// parte), então eles são tirados antes de salvar.
 export async function updateSummary(projectId: string, summary: BookSummary | null) {
   await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), {
-    summary: summary ?? deleteField(),
+    summary: summary ? JSON.parse(JSON.stringify(summary)) : deleteField(),
+    updatedAt: Date.now(),
+  })
+}
+
+// Salva as seções do livro (Sumário, Capítulos, Dedicatória...) na
+// ordem em que aparecem na lista lateral e no livro.
+export async function updateSections(projectId: string, sections: BookSection[]) {
+  await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), {
+    sections: JSON.parse(JSON.stringify(sections)),
     updatedAt: Date.now(),
   })
 }

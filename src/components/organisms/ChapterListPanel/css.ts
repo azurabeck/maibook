@@ -295,6 +295,159 @@ injectStyleSheet('chapter-list-panel-organism-css', `
   font-size: 11px;
   color: var(--text-secondary);
 }
+/* #region Seções do livro (Sumário, Capítulos, Dedicatória...) —
+   cada uma com título arrastável; a ordem aqui é a ordem do livro */
+.chapter-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.chapter-list > * {
+  flex-shrink: 0;
+}
+
+.chapter-list__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.chapter-list__section {
+  transition: opacity 0.16s ease;
+}
+
+/* "Capítulos" (a seção principal) ganha respiro em volta, separando
+   o miolo das seções curtas (sumário, glossário, dedicatória...) */
+.chapter-list__section--main {
+  margin: 4px 0 18px;
+}
+
+.chapter-list__section-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+  border-radius: var(--radius-sm);
+}
+
+.chapter-list__section-drag-handle {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.6;
+  cursor: grab;
+}
+
+.chapter-list__section-header:hover .chapter-list__section-drag-handle {
+  opacity: 1;
+  color: var(--accent-purple);
+}
+
+.chapter-list__section-drag-handle:active {
+  cursor: grabbing;
+}
+
+.chapter-list__section-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  user-select: none;
+}
+
+.chapter-list__section-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-list__section-title small {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+button.chapter-list__section-title:hover {
+  color: var(--accent-purple);
+}
+
+.chapter-list__section--main > .chapter-list__section-header .chapter-list__section-title {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.chapter-list__section-action,
+.chapter-list__section-hover-action {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.chapter-list__section-action:hover,
+.chapter-list__section-hover-action:hover {
+  color: var(--accent-purple);
+  background: var(--bg-panel-alt);
+}
+
+/* ⋮ da seção (renomear, aparecer no sumário) só aparece no hover */
+.chapter-list__section-hover-action {
+  opacity: 0;
+}
+
+.chapter-list__section-header:hover .chapter-list__section-hover-action,
+.chapter-list__section-hover-action:focus-visible {
+  opacity: 1;
+}
+
+.chapter-list__section .chapter-list__items {
+  margin: 2px 0 0;
+}
+
+.chapter-list__menu-icon-spacer {
+  display: inline-block;
+  width: 14px;
+}
+
+.chapter-list__menu-divider {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* "Nova seção" fica no pé do painel */
+.chapter-list__add-row {
+  position: relative;
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.chapter-list__add-row .chapter-list__add {
+  width: auto;
+}
+/* #endregion */
 `)
 
 export const chapterListPanelCss = {
@@ -324,4 +477,15 @@ export const chapterListPanelCss = {
   chapterListAdd: 'chapter-list__add',
   chapterListNewChapter: 'chapter-list__new-chapter',
   chapterListNewChapterMenu: 'chapter-list__new-chapter-menu',
+  sections: 'chapter-list__sections',
+  section: 'chapter-list__section',
+  sectionHeader: 'chapter-list__section-header',
+  sectionTitle: 'chapter-list__section-title',
+  sectionMain: 'chapter-list__section--main',
+  sectionDragHandle: 'chapter-list__section-drag-handle',
+  sectionAction: 'chapter-list__section-action',
+  sectionHoverAction: 'chapter-list__section-hover-action',
+  menuDivider: 'chapter-list__menu-divider',
+  menuIconSpacer: 'chapter-list__menu-icon-spacer',
+  addRow: 'chapter-list__add-row',
 } as const

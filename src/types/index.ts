@@ -20,6 +20,10 @@ export interface ChapterOrderAnalysis {
 
 export interface StoryTimelineEvent {
   year: number
+  // 'chapter' = ano vem do campo `year` de um capítulo do evento
+  // (definido pela autora); 'ai' = estimado pela IA. Análises antigas
+  // não têm o campo.
+  yearSource?: 'chapter' | 'ai'
   title: string
   summary: string
   chapterIds: string[]
@@ -71,15 +75,63 @@ export type SummaryNumbering = 'none' | 'number' | 'bullet'
 // sempre gerada automaticamente a partir da estrutura atual de
 // capítulos — o que fica salvo aqui é só o "modelo" (estilo visual) e
 // os textos livres antes/depois da lista.
+export type SummaryTextAlign = 'left' | 'center' | 'right'
+
+// Estilo de cada parte do sumário (título, agrupamento, capítulos).
+// Tudo opcional: o que faltar cai no padrão (ver resolveSummaryStyle
+// em BookSummaryView) — sumários antigos continuam com a mesma cara.
+export interface SummaryTextStyle {
+  fontFamily?: string
+  fontSize?: number // px
+  bold?: boolean
+  italic?: boolean
+  align?: SummaryTextAlign
+  divider?: boolean // linha fina abaixo (título e agrupamento)
+}
+
 export interface BookSummary {
   title: string
   textBefore?: string
   textAfter?: string
-  fontFamily: string
+  fontFamily: string // fonte base: vale pra toda parte sem fonte própria
   leaderStyle: SummaryLeaderStyle
   numbering: SummaryNumbering
   showPageNumbers: boolean
   showSubchapters: boolean
+  presetId?: string // modelo pronto aplicado (vazio = montado à mão)
+  // Agrupamento = capítulo que tem capítulos dentro (ex.: "Parte um").
+  // Destacado, ele vira um título de seção, sem número nem página, e
+  // os capítulos dentro dele não ficam recuados.
+  highlightGroups?: boolean
+  // Numera só os capítulos que estão dentro de um agrupamento
+  // (Prefácio, Introdução... ficam sem número).
+  numberGroupedOnly?: boolean
+  titleStyle?: SummaryTextStyle
+  groupStyle?: SummaryTextStyle
+  entryStyle?: SummaryTextStyle
+  // espaçamentos em px
+  titleSpacingTop?: number
+  titleSpacingBottom?: number
+  groupSpacingTop?: number
+  groupSpacingBottom?: number
+  entrySpacing?: number
+  columns?: 1 | 2 // lista de capítulos em 1 ou 2 colunas
+  columnGap?: number // px entre as colunas
+}
+
+// Seções do livro, na ordem em que aparecem (lista lateral → livro
+// impresso): o sumário, os capítulos e partes extras como dedicatória
+// e glossário. Cada página (Chapter) pertence a uma seção.
+// prologue/epilogue: mesma estrutura dos capítulos, entram no sumário
+// mas não contam na numeração de capítulos
+export type BookSectionKind = 'summary' | 'chapters' | 'prologue' | 'epilogue' | 'dedication' | 'glossary' | 'other'
+
+export interface BookSection {
+  id: string
+  kind: BookSectionKind
+  title: string
+  // entra no sumário? (padrão: sim, menos dedicatória — ver sectionShowsInSummary)
+  showInSummary?: boolean
 }
 
 export interface BookProject {
@@ -97,6 +149,7 @@ export interface BookProject {
   worldMapImageUrl?: string // imagem do mapa geral do mundo do livro
   cover?: BookCover
   summary?: BookSummary
+  sections?: BookSection[] // ausente = [Sumário, Capítulos] (ver resolveBookSections)
 }
 
 export interface ChapterHeader extends HeaderStructureDraft {
@@ -134,10 +187,18 @@ export interface Chapter {
   // Figma). Ausente = capítulo de nível raiz. `order` é único entre
   // irmãos (mesmo parentId), não um índice global.
   parentId?: string
+  // Seção do livro (Dedicatória, Glossário...) — só vale pros capítulos
+  // de nível raiz; os aninhados herdam a do capítulo-pai. Ausente =
+  // seção principal "Capítulos".
+  sectionId?: string
   header?: ChapterHeader
   grid?: ChapterGrid
   footer?: ChapterFooter
   notes?: string
+  // Ano em que o capítulo se passa — não aparece no livro, é só uma
+  // referência pra montar a timeline da história e conferir a idade
+  // dos personagens. Ausente = ainda não definido.
+  year?: number
 }
 
 export interface BookLocation {
