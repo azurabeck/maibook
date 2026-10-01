@@ -86,6 +86,15 @@ export interface IdeaDiscussionInput {
   characters: Array<{ name: string; aliases: string[] }>
 }
 
+export interface GlossaryDefinitionInput {
+  term: string
+  bookTitle: string
+  // o livro inteiro (mesmo formato das outras análises: vira prefixo de cache)
+  chapters: Array<{ id: string; title: string; content: string }>
+  // trecho onde a autora selecionou a palavra (ajuda a desambiguar)
+  context?: string
+}
+
 export interface AiProvider {
   name: string
   reviewGrammar(text: string): Promise<string>
@@ -100,4 +109,6 @@ export interface AiProvider {
   analyzeLocationFull(input: LocationAnalysisInput): Promise<LocationFullAnalysisResult>
   analyzeChapterOrder(input: TimelineAnalysisInput): Promise<Omit<ChapterOrderAnalysis, 'analyzedAt'>>
   analyzeStoryTimeline(input: TimelineAnalysisInput): Promise<Omit<StoryTimelineAnalysis, 'analyzedAt'>>
+  // verbete curto (até 2 linhas) explicando o termo no contexto do livro
+  defineGlossaryTerm(input: GlossaryDefinitionInput): Promise<string>
 }

@@ -1,7 +1,8 @@
-import type { AiProvider, BookQuestionInput, CharacterAnalysisInput, CharacterDetectionInput, CharacterDetectionResult, CharacterFullAnalysisResult, IdeaDiscussionInput, LocationAnalysisInput, LocationDetectionInput, LocationDetectionResult, LocationFullAnalysisResult, TimelineAnalysisInput } from './types'
+import type { AiProvider, BookQuestionInput, GlossaryDefinitionInput, CharacterAnalysisInput, CharacterDetectionInput, CharacterDetectionResult, CharacterFullAnalysisResult, IdeaDiscussionInput, LocationAnalysisInput, LocationDetectionInput, LocationDetectionResult, LocationFullAnalysisResult, TimelineAnalysisInput } from './types'
 import type { CharacterConnection, CharacterConnectionTimelineEvent, ChapterOrderAnalysis, CharacterChapterSummaryItem, LocationConnection, LocationEventItem, StoryTimelineAnalysis } from '@/types'
+import { getUserGeminiKey } from '@/services/userSettings'
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim()
+const GEMINI_API_KEY =import.meta.env.VITE_GEMINI_API_KEY?.trim()
 const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL?.trim() || 'gemini-2.5-flash'
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
 
@@ -36,10 +37,25 @@ async function readGeminiError(response: Response) {
   return `Erro na chamada ao Gemini: ${response.status} ${response.statusText}`.trim()
 }
 
+// Confere se uma chave funciona antes de salvar (tela de Configurações):
+// listar os modelos é uma chamada leve, que não gasta tokens.
+export async function validateGeminiKey(apiKey: string) {
+  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', {
+    headers: { 'x-goog-api-key': apiKey },
+  })
+
+  if (!response.ok) {
+    throw new Error(await readGeminiError(response))
+  }
+}
+
 async function callGemini(prompt: string, options?: { json?: boolean }): Promise<string> {
-  if (!GEMINI_API_KEY) {
+  // a chave que o usuário colou em Configurações ganha da chave da plataforma
+  const apiKey = getUserGeminiKey() || GEMINI_API_KEY
+
+  if (!apiKey) {
     throw new Error(
-      'A chave VITE_GEMINI_API_KEY não está configurada. Adicione-a ao arquivo .env e reinicie o servidor.',
+      'Nenhuma chave do Gemini configurada. Adicione a sua em Configurações.',
     )
   }
 
@@ -49,7 +65,7 @@ async function callGemini(prompt: string, options?: { json?: boolean }): Promise
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-goog-api-key': GEMINI_API_KEY,
+      'x-goog-api-key': apiKey,
     },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -369,6 +385,31 @@ sugira 3 ideias curtas para continuar a cena ou o capítulo.
 
 Contexto:
 """${context}"""`, { json: false })
+  },
+
+  async defineGlossaryTerm(input: GlossaryDefinitionInput) {
+    // manuscrito no início (mesmo formato das outras análises), pra o
+    // cache automático do Gemini reaproveitar entre um termo e outro
+    const response = await callGemini(`TEXTO DO LIVRO:
+${buildManuscriptText(input.chapters)}
+
+---
+
+Você está montando o glossário do livro "${input.bookTitle}".
+Escreva o verbete do termo "${input.term}" como num dicionário: o que ele é/significa DENTRO desta história, com base no texto acima.
+${input.context ? `Trecho em que o termo aparece (para desambiguar):
+"${input.context}"
+` : ''}
+Regras:
+- No máximo 2 linhas (até cerca de 200 caracteres), uma ou duas frases curtas.
+- Estilo de dicionário: direto, sem repetir o termo no início, sem "No livro," nem "Na história,".
+- Não conte spoilers de reviravoltas; descreva o essencial.
+- Se o texto não trouxer informação suficiente, dê o significado comum da palavra em português.
+- Português do Brasil, sem aspas, sem markdown.
+
+Responda só com o texto do verbete.`, { json: false })
+
+    return response.replace(/^["'“”]+|["'“”]+$/g, '').replace(/\s+/g, ' ').trim()
   },
 
   async answerBookQuestion(input: BookQuestionInput) {

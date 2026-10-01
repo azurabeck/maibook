@@ -464,3 +464,20 @@ export interface Character {
   createdAt?: number
   updatedAt?: number
 }
+
+// Termo do glossário do livro (Estruturas → Glossário). Fica num mapa
+// dentro do documento do projeto: projects/{projectId}.glossary.{termId}
+// (ver services/firestore/glossary.ts).
+export interface GlossaryTerm {
+  id: string
+  projectId: string
+  term: string
+  // resumo tipo verbete de dicionário (até ~2 linhas), gerado pela IA
+  // a partir do contexto no livro ou escrito à mão
+  definition: string
+  // 'generating' enquanto a IA ainda está escrevendo a definição
+  status?: 'generating' | 'error'
+  sourceChapterId?: string // capítulo de onde a palavra foi adicionada
+  createdAt: number
+  updatedAt: number
+}

@@ -1,1 +1,1 @@
-export {}
+export type AuthMode = 'login' | 'signup'

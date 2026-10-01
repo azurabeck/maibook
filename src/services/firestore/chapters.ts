@@ -16,8 +16,9 @@
 // memória (no client) mesmo ele não sendo salvo dentro do doc do
 // Firestore, já que o caminho da subcoleção já carrega essa info.
 
-import { addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, orderBy, query, updateDoc, writeBatch } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, deleteField, doc, getDocs, onSnapshot, orderBy, query, updateDoc, writeBatch } from 'firebase/firestore'
 import { db } from '@/services/firebase'
+import { stripInline } from '@/utils/inlineFormat'
 import type { Chapter, ChapterFooter, ChapterGrid, ChapterHeader, ChapterPageType } from '@/types'
 
 function chaptersCollection(projectId: string) {
@@ -42,6 +43,18 @@ export function subscribeToChapters(
     )
     onChange(chapters)
   })
+}
+
+// Total de palavras do projeto, somando todos os capítulos. Leitura
+// única (sem listener) — usada na lista de projetos de "Meu perfil".
+export async function fetchProjectWordCount(projectId: string) {
+  const snapshot = await getDocs(chaptersCollection(projectId))
+
+  return snapshot.docs.reduce((total, docSnap) => {
+    // sem as marcações de negrito/itálico, que não são palavras
+    const text = stripInline(String(docSnap.data().content ?? '')).trim()
+    return total + (text ? text.split(/\s+/).length : 0)
+  }, 0)
 }
 
 // Cria um capítulo novo dentro do projeto e devolve o id gerado.

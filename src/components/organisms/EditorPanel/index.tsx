@@ -23,6 +23,8 @@ import { DialogueSuggestModal } from '@/components/organisms/DialogueSuggestModa
 import { uploadChapterPageImage, validateImageFile } from '@/services/storage/images'
 import { ChapterTextEditor, contentToDoc } from '@/components/molecules/ChapterTextEditor/index'
 import { stripInline } from '@/utils/inlineFormat'
+import { addGlossaryTermWithAi, findGlossaryTerm, useGlossaryTerms } from '@/services/glossary'
+import { checkWordSpelling, preloadSpellchecker, setGlossaryWords } from '@/services/spelling'
 import type { Editor } from '@tiptap/react'
 import type { ChapterPageType } from '@/types'
 import { editorPanelCss } from './css'
@@ -167,6 +169,46 @@ export function EditorPanel() {
   // pela busca e pra aplicar as revisões da IA
   const [textEditor, setTextEditor] = useState<Editor | null>(null)
   const handleEditorReady = useCallback((editor: Editor | null) => setTextEditor(editor), [])
+
+  // #region Botão direito → "Adicionar ao Glossário"
+  // Cria o termo e pede à IA o verbete (resumo de até 2 linhas com base
+  // no livro). Um aviso rápido no rodapé do editor mostra o andamento.
+  const { terms: glossaryTerms } = useGlossaryTerms(currentProject?.id)
+
+  // corretor ortográfico do mesmo menu: dicionário pt-BR carregado em
+  // segundo plano ao abrir o editor + termos do glossário como corretos
+  useEffect(() => { preloadSpellchecker() }, [])
+  useEffect(() => { setGlossaryWords(glossaryTerms.map((item) => item.term)) }, [glossaryTerms])
+  const [glossaryNotice, setGlossaryNotice] = useState<{ tone: 'info' | 'error'; text: string } | null>(null)
+
+  useEffect(() => {
+    if (!glossaryNotice || glossaryNotice.text.endsWith('...')) return
+    const timer = window.setTimeout(() => setGlossaryNotice(null), 4500)
+    return () => window.clearTimeout(timer)
+  }, [glossaryNotice])
+
+  async function handleAddToGlossary(term: string, context: string) {
+    if (!currentProject) return
+    if (findGlossaryTerm(glossaryTerms, term)) {
+      setGlossaryNotice({ tone: 'info', text: `“${term}” já está no glossário (Estruturas → Glossário).` })
+      return
+    }
+    setGlossaryNotice({ tone: 'info', text: `“${term}” adicionado ao glossário — a IA está escrevendo a definição...` })
+    try {
+      await addGlossaryTermWithAi(
+        currentProject.id,
+        { term, context, sourceChapterId: activeChapterId ?? undefined },
+        { bookTitle: currentProject.title, chapters, sections: currentProject.sections },
+        ({ ok, error }) => setGlossaryNotice(ok
+          ? { tone: 'info', text: `Definição de “${term}” pronta. Veja ou edite em Estruturas → Glossário.` }
+          : { tone: 'error', text: `“${term}” entrou no glossário, mas a IA não conseguiu definir: ${error instanceof Error ? error.message : 'erro desconhecido'}` }),
+      )
+    } catch (error) {
+      console.error('Falha ao adicionar ao glossário:', error)
+      setGlossaryNotice({ tone: 'error', text: `Não foi possível adicionar “${term}” ao glossário: ${error instanceof Error ? error.message : 'erro desconhecido'}` })
+    }
+  }
+  // #endregion
 
   // revisão da IA (gramática/diálogos) devolve o texto inteiro: passa
   // pelo editor (entra no Ctrl+Z e dispara o salvamento normal)
@@ -445,6 +487,8 @@ export function EditorPanel() {
             savePending={isSaving}
             onChange={(content) => updateChapterContent(activeChapter.id, content)}
             onReady={handleEditorReady}
+            onAddToGlossary={(term, context) => void handleAddToGlossary(term, context)}
+            onCheckSpelling={checkWordSpelling}
             className={
               isBackgroundPage && activeChapter.pageImageUrl
                 ? `${editorPanelCss.editorPanelTextarea} ${editorPanelCss.editorPanelTextareaOnImage}`
@@ -466,6 +510,12 @@ export function EditorPanel() {
       {/* #endregion */}
 
       {/* #region Rodapé */}
+      {glossaryNotice && (
+        <div className={glossaryNotice.tone === 'error' ? editorPanelCss.glossaryNoticeError : editorPanelCss.glossaryNotice} role="status">
+          {glossaryNotice.text}
+          <button type="button" onClick={() => setGlossaryNotice(null)} aria-label="Fechar aviso"><X size={13} /></button>
+        </div>
+      )}
       <div className={editorPanelCss.editorPanelFooter}>
         {wordCount} palavras · {isSaving ? 'Salvando alterações...' : 'Tudo salvo no Firestore'}
       </div>

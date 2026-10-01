@@ -2,6 +2,9 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { PublicPage } from '@/pages/PublicPage/index'
 import { LoginPage } from '@/pages/LoginPage/index'
 import { DashboardPage } from '@/pages/DashboardPage/index'
+import { ProfilePage } from '@/pages/ProfilePage/index'
+import { SettingsPage } from '@/pages/SettingsPage/index'
+import { AccountLayout } from '@/components/templates/AccountLayout/index'
 import { ProjectLayout } from '@/components/templates/ProjectLayout/index'
 import { ChaptersPage } from '@/pages/project/ChaptersPage/index'
 import { StructurePage } from '@/pages/project/StructurePage/index'
@@ -25,6 +28,14 @@ export const router = createBrowserRouter([
   {
     path: '/dashboard',
     element: <DashboardPage />,
+  },
+  {
+    // páginas da conta: mesmo cabeçalho, só pra quem está logado
+    element: <AccountLayout />,
+    children: [
+      { path: '/perfil', element: <ProfilePage /> },
+      { path: '/configuracoes', element: <SettingsPage /> },
+    ],
   },
   {
     path: '/projeto/:projectId',

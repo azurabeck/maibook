@@ -5,6 +5,7 @@ import { BookOpen, Moon, Plus, Sun } from 'lucide-react'
 import { auth } from '@/services/firebase'
 import { createProject, subscribeToUserProjects } from '@/services/firestore/projects'
 import { Button } from '@/components/atoms/Button/index'
+import { UserMenu } from '@/components/organisms/UserMenu/index'
 import { useTheme } from '@/contexts/ThemeContext'
 import type { BookProject } from '@/types'
 import { dashboardPageCss } from './css'
@@ -69,9 +70,7 @@ export function DashboardPage() {
           >
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
-          <button className={dashboardPageCss.topNavAvatar} type="button">
-            <span className={dashboardPageCss.avatarCircle}>A</span>
-          </button>
+          <UserMenu />
         </div>
       </header>
 

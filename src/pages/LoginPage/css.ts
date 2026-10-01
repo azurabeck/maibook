@@ -98,6 +98,57 @@ injectStyleSheet('login-page-css', `
   font-size: 13px;
 }
 
+.login-card__google {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.login-card__divider {
+  margin: 18px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.login-card__divider::before,
+.login-card__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.25;
+}
+
+.login-card__switch {
+  margin: 18px 0 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.login-card__switch button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-purple);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-card__switch button:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 900px) {
   .auth-page {
     grid-template-columns: 1fr;
@@ -135,4 +186,7 @@ export const loginPageCss = {
   cardHeader: 'login-card__header',
   submit: 'login-card__submit',
   error: 'login-card__error',
+  google: 'login-card__google',
+  divider: 'login-card__divider',
+  switch: 'login-card__switch',
 } as const

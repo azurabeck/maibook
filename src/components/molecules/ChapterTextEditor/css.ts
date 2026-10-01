@@ -79,6 +79,85 @@ injectStyleSheet('chapter-text-editor-molecule-css', `
 @media (max-width: 680px) {
   .chapter-text-editor__hint { display: none; }
 }
+
+/* menu do botão direito (Adicionar ao Glossário) */
+.chapter-text-editor__context-menu {
+  position: fixed;
+  z-index: 120;
+  min-width: 200px;
+  max-width: 320px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.chapter-text-editor__context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+}
+
+.chapter-text-editor__context-menu button:hover {
+  background: var(--bg-panel-alt);
+}
+
+.chapter-text-editor__context-menu svg {
+  flex: 0 0 auto;
+  color: var(--accent-purple);
+}
+
+.chapter-text-editor__context-menu strong {
+  overflow-wrap: anywhere;
+}
+
+/* sugestões de correção: em destaque, no topo do menu */
+.chapter-text-editor__context-menu .chapter-text-editor__suggestion strong {
+  color: var(--accent-purple);
+  font-weight: 700;
+}
+
+.chapter-text-editor__context-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 7px 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.chapter-text-editor__context-divider {
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.chapter-text-editor__context-note--delayed {
+  animation: chapter-text-editor-appear 0s linear 0.25s both;
+}
+
+@keyframes chapter-text-editor-appear {
+  from { visibility: hidden; }
+  to { visibility: visible; }
+}
+
+.chapter-text-editor__spinner {
+  animation: chapter-text-editor-spin 0.8s linear infinite;
+}
+
+@keyframes chapter-text-editor-spin {
+  to { transform: rotate(360deg); }
+}
 `)
 
 export const chapterTextEditorCss = {
@@ -89,4 +168,10 @@ export const chapterTextEditorCss = {
   hint: 'chapter-text-editor__hint',
   scroller: 'chapter-text-editor__scroller',
   content: 'chapter-text-editor__content',
+  contextMenu: 'chapter-text-editor__context-menu',
+  contextMenuNote: 'chapter-text-editor__context-note',
+  contextMenuNoteDelayed: 'chapter-text-editor__context-note--delayed',
+  contextMenuDivider: 'chapter-text-editor__context-divider',
+  suggestion: 'chapter-text-editor__suggestion',
+  spinner: 'chapter-text-editor__spinner',
 } as const

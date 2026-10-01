@@ -67,6 +67,11 @@ injectStyleSheet('editor-panel-organism-css', `
   .page-type-button span{display:none}
   .editor-panel__search-toggle span,.editor-panel__search-toggle--active span{display:none}
 }
+
+/* aviso rápido do "Adicionar ao Glossário" (botão direito no texto) */
+.editor-panel__glossary-notice{display:flex;align-items:flex-start;gap:8px;margin:8px 0 0;padding:8px 10px;border:1px solid var(--accent-purple);border-radius:var(--radius-md);background:var(--accent-purple-soft);color:var(--text-primary);font-size:12px;line-height:1.45}
+.editor-panel__glossary-notice button{flex:0 0 auto;margin-left:auto;display:grid;place-items:center;padding:2px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text-secondary)}
+.editor-panel__glossary-notice--error{border-color:var(--danger);background:rgba(220,38,38,.08)}
 `)
 
 export const editorPanelCss = {
@@ -79,4 +84,5 @@ export const editorPanelCss = {
   pageBackgroundBar:'editor-panel__page-background-bar', pageBackgroundLabel:'editor-panel__page-background-label', pageBackgroundThumb:'editor-panel__page-background-thumb',
   pageImageUploadButtonSmall:'editor-panel__page-image-upload-small', pageImageRemoveButtonSmall:'editor-panel__page-image-remove-small', pageImageErrorSmall:'editor-panel__page-image-error-small',
   editorPanelTextareaOnImage:'editor-panel__textarea--on-image',
+  glossaryNotice:'editor-panel__glossary-notice', glossaryNoticeError:'editor-panel__glossary-notice editor-panel__glossary-notice--error',
 } as const

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useParams } from 'react-router-dom'
-import { Sun, Moon, ChevronDown, Menu, X } from 'lucide-react'
+import { Sun, Moon, Menu, X } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
+import { UserMenu } from '@/components/organisms/UserMenu/index'
 import { topNavCss } from './css'
 
 // #region Configuração das abas
@@ -91,10 +92,7 @@ export function TopNav() {
           {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
 
-        <button className={topNavCss.topNavAvatar}>
-          <span className={topNavCss.avatarCircle}>A</span>
-          <ChevronDown size={14} />
-        </button>
+        <UserMenu />
       </div>
       {/* #endregion */}
 
