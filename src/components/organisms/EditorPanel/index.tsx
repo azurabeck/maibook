@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import {
   Image as ImageIcon,
+  Link2,
   Search,
   ChevronUp,
   ChevronDown,
@@ -20,7 +21,7 @@ import { ChapterFooterSelector } from '@/components/organisms/ChapterFooterSelec
 import { BookPreview } from '@/components/organisms/BookPreview/index'
 import { GrammarCheckModal } from '@/components/organisms/GrammarCheckModal/index'
 import { DialogueSuggestModal } from '@/components/organisms/DialogueSuggestModal/index'
-import { uploadChapterPageImage, validateImageFile } from '@/services/storage/images'
+import { INVALID_IMAGE_LINK_MESSAGE, parseImageLink, uploadChapterPageImage, validateImageFile } from '@/services/storage/images'
 import { ChapterTextEditor, contentToDoc } from '@/components/molecules/ChapterTextEditor/index'
 import { stripInline } from '@/utils/inlineFormat'
 import { addGlossaryTermWithAi, findGlossaryTerm, useGlossaryTerms } from '@/services/glossary'
@@ -67,6 +68,23 @@ interface ChapterPageImageControlProps {
 function ChapterPageImageControl({ projectId, chapterId, imageUrl, variant, onChange }: ChapterPageImageControlProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [linkDraft, setLinkDraft] = useState('')
+
+  async function handleLink() {
+    if (!linkDraft.trim()) return
+    const url = parseImageLink(linkDraft)
+    if (!url) {
+      setError(INVALID_IMAGE_LINK_MESSAGE)
+      return
+    }
+    setError('')
+    try {
+      await onChange(url)
+      setLinkDraft('')
+    } catch {
+      setError('Não foi possível salvar o link da imagem.')
+    }
+  }
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -122,6 +140,18 @@ function ChapterPageImageControl({ projectId, chapterId, imageUrl, variant, onCh
             </button>
           )}
         </div>
+        <div className={editorPanelCss.pageImageLinkRow}>
+          <input
+            type="url"
+            placeholder="Ou cole o link de uma imagem"
+            value={linkDraft}
+            onChange={(event) => setLinkDraft(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter') void handleLink() }}
+          />
+          <button type="button" onClick={() => void handleLink()} disabled={!linkDraft.trim()}>
+            <Link2 size={14} /> Usar link
+          </button>
+        </div>
         {error && <p className={editorPanelCss.pageImageError}>{error}</p>}
       </div>
     )
@@ -135,6 +165,18 @@ function ChapterPageImageControl({ projectId, chapterId, imageUrl, variant, onCh
         <input type="file" accept="image/*" hidden onChange={(event) => void handleFile(event)} disabled={uploading} />
         {uploading ? 'Enviando...' : imageUrl ? 'Trocar' : 'Adicionar imagem'}
       </label>
+      <div className={editorPanelCss.pageImageLinkRowSmall}>
+        <input
+          type="url"
+          placeholder="ou cole um link"
+          value={linkDraft}
+          onChange={(event) => setLinkDraft(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter') void handleLink() }}
+        />
+        <button type="button" onClick={() => void handleLink()} disabled={!linkDraft.trim()} title="Usar link da imagem">
+          <Link2 size={13} />
+        </button>
+      </div>
       {imageUrl && (
         <button className={editorPanelCss.pageImageRemoveButtonSmall} type="button" onClick={() => void handleRemove()} title="Remover fundo">
           <Trash2 size={13} />

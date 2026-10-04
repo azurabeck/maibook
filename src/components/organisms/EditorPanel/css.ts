@@ -49,6 +49,14 @@ injectStyleSheet('editor-panel-organism-css', `
 .editor-panel__page-image-remove{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg-panel-alt);color:var(--text-secondary);font-size:12px}
 .editor-panel__page-image-remove:hover{border-color:var(--danger);color:var(--danger)}
 .editor-panel__page-image-error{margin:0;color:var(--danger);font-size:11px}
+.editor-panel__page-image-link{display:flex;gap:8px;width:min(420px,100%)}
+.editor-panel__page-image-link input{flex:1;min-width:0;height:34px;padding:0 11px;border:1px solid var(--border-strong);border-radius:9px;background:var(--bg-panel);color:var(--text-primary);font-size:12px}
+.editor-panel__page-image-link button{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid var(--border-strong);border-radius:9px;background:var(--bg-panel-alt);color:var(--text-primary);font-size:12px;font-weight:600;white-space:nowrap}
+.editor-panel__page-image-link button:hover:not(:disabled),.editor-panel__page-image-link-small button:hover:not(:disabled){border-color:var(--accent-purple);color:var(--accent-purple)}
+.editor-panel__page-image-link button:disabled,.editor-panel__page-image-link-small button:disabled{opacity:.5;cursor:not-allowed}
+.editor-panel__page-image-link-small{display:flex;gap:4px;flex:1 1 160px;min-width:140px;max-width:280px}
+.editor-panel__page-image-link-small input{flex:1;min-width:0;height:26px;padding:0 8px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-panel);color:var(--text-primary);font-size:11px}
+.editor-panel__page-image-link-small button{display:grid;place-items:center;width:26px;height:26px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-panel);color:var(--text-secondary)}
 /* #endregion */
 
 /* #region Fundo de página ("background") */
@@ -81,6 +89,7 @@ export const editorPanelCss = {
   searchBar:'editor-panel__search-bar', searchBarIcon:'editor-panel__search-bar-icon', searchBarInput:'editor-panel__search-bar-input', searchBarCount:'editor-panel__search-bar-count',
   pageImageFull:'editor-panel__page-image-full', pageImageFullPreview:'editor-panel__page-image-full-preview', pageImageFullEmpty:'editor-panel__page-image-full-empty', pageImageFullActions:'editor-panel__page-image-full-actions',
   pageImageUploadButton:'editor-panel__page-image-upload', pageImageRemoveButton:'editor-panel__page-image-remove', pageImageError:'editor-panel__page-image-error',
+  pageImageLinkRow:'editor-panel__page-image-link', pageImageLinkRowSmall:'editor-panel__page-image-link-small',
   pageBackgroundBar:'editor-panel__page-background-bar', pageBackgroundLabel:'editor-panel__page-background-label', pageBackgroundThumb:'editor-panel__page-background-thumb',
   pageImageUploadButtonSmall:'editor-panel__page-image-upload-small', pageImageRemoveButtonSmall:'editor-panel__page-image-remove-small', pageImageErrorSmall:'editor-panel__page-image-error-small',
   editorPanelTextareaOnImage:'editor-panel__textarea--on-image',

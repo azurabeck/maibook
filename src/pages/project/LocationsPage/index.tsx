@@ -7,6 +7,7 @@ import {
   Clock3,
   Download,
   FileSearch,
+  Link2,
   Map,
   MapPin,
   MapPinned,
@@ -28,7 +29,13 @@ import {
   updateLocationImage,
 } from '@/services/firestore/locations'
 import { updateLocationDetectionAnalysis, updateWorldMapImage } from '@/services/firestore/projects'
-import { uploadLocationImage, uploadWorldMapImage, validateImageFile } from '@/services/storage/images'
+import {
+  INVALID_IMAGE_LINK_MESSAGE,
+  parseImageLink,
+  uploadLocationImage,
+  uploadWorldMapImage,
+  validateImageFile,
+} from '@/services/storage/images'
 import { useProjectStore } from '@/store/useProjectStore'
 import type { BookLocation, LocationDetailsAnalysis } from '@/types'
 import { locationsPageCss as css } from './css'
@@ -87,6 +94,8 @@ export function LocationsPage() {
   const [worldMapError, setWorldMapError] = useState('')
   const [uploadingLocationImageId, setUploadingLocationImageId] = useState<string | null>(null)
   const [imageError, setImageError] = useState('')
+  const [worldMapLinkDraft, setWorldMapLinkDraft] = useState('')
+  const [locationImageLinkDraft, setLocationImageLinkDraft] = useState('')
 
   useEffect(() => {
     if (!projectId) return
@@ -134,6 +143,11 @@ export function LocationsPage() {
   useEffect(() => {
     setAliasDraft(activeLocation?.aliases?.join(', ') ?? '')
   }, [activeLocation?.id, activeLocation?.aliases])
+
+  useEffect(() => {
+    setLocationImageLinkDraft('')
+    setImageError('')
+  }, [activeLocation?.id])
 
   const handleCreateLocation = async () => {
     if (!projectId || !newLocationName.trim()) return
@@ -194,6 +208,23 @@ export function LocationsPage() {
     }
   }
 
+  // usa o link de uma imagem já hospedada como mapa (sem upload)
+  const handleWorldMapLink = async () => {
+    if (!projectId || !worldMapLinkDraft.trim()) return
+    const imageUrl = parseImageLink(worldMapLinkDraft)
+    if (!imageUrl) {
+      setWorldMapError(INVALID_IMAGE_LINK_MESSAGE)
+      return
+    }
+    setWorldMapError('')
+    try {
+      await updateWorldMapImage(projectId, imageUrl)
+      setWorldMapLinkDraft('')
+    } catch {
+      setWorldMapError('Não foi possível salvar o link da imagem.')
+    }
+  }
+
   const handleRemoveWorldMap = async () => {
     if (!projectId) return
     const confirmed = window.confirm('Remover o mapa do mundo?')
@@ -223,6 +254,27 @@ export function LocationsPage() {
     } finally {
       setUploadingLocationImageId(null)
     }
+  }
+
+  const handleLocationImageLink = async (location: BookLocation) => {
+    if (!projectId || !locationImageLinkDraft.trim()) return
+    const imageUrl = parseImageLink(locationImageLinkDraft)
+    if (!imageUrl) {
+      setImageError(INVALID_IMAGE_LINK_MESSAGE)
+      return
+    }
+    setImageError('')
+    try {
+      await updateLocationImage(projectId, location.id, imageUrl)
+      setLocationImageLinkDraft('')
+    } catch {
+      setImageError('Não foi possível salvar o link da imagem.')
+    }
+  }
+
+  const handleRemoveLocationImage = async (location: BookLocation) => {
+    if (!projectId) return
+    await updateLocationImage(projectId, location.id, null)
   }
 
   // pede pra IA varrer o manuscrito inteiro e apontar lugares que
@@ -470,6 +522,19 @@ export function LocationsPage() {
                 </div>
               </header>
 
+              <div className={css.imageLinkRow}>
+                <input
+                  type="url"
+                  placeholder="Ou cole o link de uma imagem"
+                  value={worldMapLinkDraft}
+                  onChange={(event) => setWorldMapLinkDraft(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') void handleWorldMapLink() }}
+                />
+                <button type="button" onClick={() => void handleWorldMapLink()} disabled={!worldMapLinkDraft.trim()}>
+                  <Link2 size={14} /> Usar link
+                </button>
+              </div>
+
               {worldMapImageUrl ? (
                 <img className={css.worldMapImage} src={worldMapImageUrl} alt="Mapa do mundo do livro" />
               ) : (
@@ -599,6 +664,24 @@ export function LocationsPage() {
                   </button>
                 </div>
               </header>
+
+              <div className={css.imageLinkRow}>
+                <input
+                  type="url"
+                  placeholder="Imagem do lugar: envie pelo ícone da câmera ou cole um link aqui"
+                  value={locationImageLinkDraft}
+                  onChange={(event) => setLocationImageLinkDraft(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') void handleLocationImageLink(activeLocation) }}
+                />
+                <button type="button" onClick={() => void handleLocationImageLink(activeLocation)} disabled={!locationImageLinkDraft.trim()}>
+                  <Link2 size={14} /> Usar link
+                </button>
+                {activeLocation.imageUrl && (
+                  <button type="button" onClick={() => void handleRemoveLocationImage(activeLocation)} title="Remover imagem do lugar">
+                    <Trash2 size={14} /> Remover
+                  </button>
+                )}
+              </div>
 
               {imageError && <p className={css.worldMapError}>{imageError}</p>}
 

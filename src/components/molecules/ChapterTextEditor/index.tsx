@@ -8,6 +8,7 @@ import Text from '@tiptap/extension-text'
 import Bold from '@tiptap/extension-bold'
 import Italic from '@tiptap/extension-italic'
 import { Placeholder, UndoRedo } from '@tiptap/extensions'
+import { Fragment, Slice } from '@tiptap/pm/model'
 import { BookMarked, Bold as BoldIcon, Check, Italic as ItalicIcon, LoaderCircle, SpellCheck } from 'lucide-react'
 import { parseInline, serializeInline, type TextRun } from '@/utils/inlineFormat'
 import { chapterTextEditorCss as css } from './css'
@@ -55,6 +56,95 @@ export function docToContent(editor: Editor): string {
     lines.push(serializeInline(runs))
   })
   return lines.join('\n')
+}
+// #endregion
+
+// #region Colar texto de fora mantendo as linhas em branco
+// O padrão do editor junta quebras de linha seguidas numa só (e, no
+// HTML, o espaço entre parágrafos é só margem), então "texto ⏎ ⏎ texto"
+// chegava como dois parágrafos colados. Aqui a estrutura de linhas vem
+// do texto puro da área de transferência — cada linha vira um parágrafo
+// e cada linha em branco vira um parágrafo vazio — e o negrito/itálico
+// vem do HTML, quando ele existe e bate linha a linha com o texto.
+const BLOCK_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'UL', 'OL', 'BLOCKQUOTE', 'PRE', 'TR', 'TABLE', 'SECTION', 'ARTICLE', 'HR'])
+const SKIPPED_TAGS = new Set(['STYLE', 'SCRIPT', 'TITLE', 'META', 'HEAD'])
+
+function markFromStyle(value: string, on: RegExp, off: RegExp, inherited: boolean) {
+  if (on.test(value)) return true
+  if (off.test(value)) return false
+  return inherited
+}
+
+// Linhas (com conteúdo) do HTML colado, já com negrito/itálico.
+function htmlToLines(html: string): TextRun[][] {
+  const lines: TextRun[][] = []
+  let current: TextRun[] = []
+  const breakLine = () => {
+    if (current.some((run) => run.text.trim())) lines.push(current)
+    current = []
+  }
+
+  const walk = (node: Node, bold: boolean, italic: boolean) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = (node.textContent ?? '').replace(/\s+/g, ' ')
+      if (text) current.push({ text, bold, italic })
+      return
+    }
+    if (!(node instanceof HTMLElement) || SKIPPED_TAGS.has(node.tagName)) return
+    if (node.tagName === 'BR') {
+      breakLine()
+      return
+    }
+
+    // o estilo inline ganha da tag: o Google Docs embrulha tudo num
+    // <b style="font-weight:normal">, que não é negrito de verdade
+    const nextBold = markFromStyle(
+      node.style.fontWeight,
+      /^(bold|bolder|[6-9]00)$/,
+      /^(normal|lighter|[1-5]00)$/,
+      bold || node.tagName === 'B' || node.tagName === 'STRONG',
+    )
+    const nextItalic = markFromStyle(
+      node.style.fontStyle,
+      /^(italic|oblique)/,
+      /^normal$/,
+      italic || node.tagName === 'I' || node.tagName === 'EM',
+    )
+
+    const isBlock = BLOCK_TAGS.has(node.tagName)
+    if (isBlock) breakLine()
+    node.childNodes.forEach((child) => walk(child, nextBold, nextItalic))
+    if (isBlock) breakLine()
+  }
+
+  walk(new DOMParser().parseFromString(html, 'text/html').body, false, false)
+  breakLine()
+  return lines
+}
+
+const lineText = (runs: TextRun[]) => runs.map((run) => run.text).join('').replace(/\s+/g, ' ').trim()
+
+// Uma entrada por linha colada; [] = linha em branco.
+export function pastedLines(plain: string, html: string): TextRun[][] {
+  const plainLines = plain.replace(/\r\n?/g, '\n').split('\n')
+  // a área de transferência costuma vir com quebras sobrando nas pontas
+  while (plainLines.length && !plainLines[0].trim()) plainLines.shift()
+  while (plainLines.length && !plainLines[plainLines.length - 1].trim()) plainLines.pop()
+
+  const filled = plainLines.filter((line) => line.trim())
+  const formatted = html ? htmlToLines(html) : []
+  // só confia na formatação do HTML se ele tiver as mesmas linhas do texto
+  const useFormatted = formatted.length === filled.length
+    && formatted.every((runs, index) => lineText(runs) === filled[index].replace(/\s+/g, ' ').trim())
+
+  let nextFormatted = 0
+  return plainLines.map((line) => {
+    if (!line.trim()) return []
+    if (!useFormatted) return [{ text: line, bold: false, italic: false }]
+    const runs = formatted[nextFormatted]
+    nextFormatted += 1
+    return runs
+  })
 }
 // #endregion
 
@@ -190,6 +280,31 @@ export function ChapterTextEditor({
       Placeholder.configure({ placeholder }),
     ],
     content: contentToDoc(content),
+    editorProps: {
+      handlePaste: (view, event) => {
+        const clipboard = event.clipboardData
+        if (!clipboard) return false
+        const html = clipboard.getData('text/html')
+        // copiado do próprio editor: o padrão já preserva parágrafos vazios
+        if (html.includes('data-pm-slice')) return false
+        const plain = clipboard.getData('text/plain')
+        if (!plain.trim()) return false
+
+        const { schema } = view.state
+        const paragraphs = pastedLines(plain, html).map((runs) => schema.nodes.paragraph.create(
+          null,
+          runs.filter((run) => run.text).map((run) => schema.text(run.text, [
+            ...(run.bold ? [schema.marks.bold.create()] : []),
+            ...(run.italic ? [schema.marks.italic.create()] : []),
+          ])),
+        ))
+        if (!paragraphs.length) return false
+        // pontas abertas: a primeira e a última linha se juntam ao
+        // parágrafo onde o cursor está, como numa colagem normal
+        view.dispatch(view.state.tr.replaceSelection(new Slice(Fragment.from(paragraphs), 1, 1)).scrollIntoView())
+        return true
+      },
+    },
     onUpdate: ({ editor: current }) => {
       const next = docToContent(current)
       lastEmittedRef.current = next

@@ -18,6 +18,13 @@ injectStyleSheet('locations-page-css', `
 .locations-page__world-map-empty { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--border); border-radius: 12px; color: var(--text-secondary); font-size: 12px; }
 .locations-page__world-map-empty p { margin: 0; }
 .locations-page__world-map-error { margin: 0; color: var(--danger); font-size: 11px; }
+.locations-page__image-link { display: flex; flex-wrap: wrap; gap: 8px; }
+.locations-page__location-header + .locations-page__image-link { margin-top: 14px; }
+.locations-page__image-link input { flex: 1; min-width: 180px; height: 36px; padding: 0 11px; border: 1px solid var(--border-strong); border-radius: 9px; outline: 0; background: var(--bg-panel); color: var(--text-primary); font: inherit; font-size: 11px; }
+.locations-page__image-link input:focus { border-color: var(--accent-purple); box-shadow: 0 0 0 2px var(--accent-purple-soft); }
+.locations-page__image-link button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 13px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-panel); color: var(--text-primary); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.locations-page__image-link button:hover:not(:disabled) { border-color: var(--accent-purple); color: var(--accent-purple); }
+.locations-page__image-link button:disabled { opacity: .5; }
 
 .locations-page__tabs { display: flex; align-items: center; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .locations-page__tab { min-height: 34px; padding: 0 13px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--text-secondary); font-size: 12px; }
@@ -142,6 +149,7 @@ export const locationsPageCss = {
   worldMapCard: 'locations-page__world-map', worldMapHeader: 'locations-page__world-map-header', worldMapActions: 'locations-page__world-map-actions',
   worldMapUploadButton: 'locations-page__world-map-upload', worldMapRemoveButton: 'locations-page__world-map-remove',
   worldMapImage: 'locations-page__world-map-image', worldMapEmpty: 'locations-page__world-map-empty', worldMapError: 'locations-page__world-map-error',
+  imageLinkRow: 'locations-page__image-link',
   imageWrap: 'locations-page__image-wrap', imageUpload: 'locations-page__image-upload', spinnerSmall: 'locations-page__spinner-small',
   tabs: 'locations-page__tabs',
   tab: 'locations-page__tab', tabActive: 'locations-page__tab locations-page__tab--active', workspace: 'locations-page__workspace',
